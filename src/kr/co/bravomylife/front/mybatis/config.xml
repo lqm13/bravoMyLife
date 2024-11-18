@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+	<settings>
+		<setting name="jdbcTypeForNull" value="NULL" />
+	</settings>
+	<typeAliases>
+		<typeAlias type="kr.co.bravomylife.front.member.dto.MemberDto"					alias="memberDto" />
+		<typeAlias type="kr.co.bravomylife.front.member.dto.TermAgreeDto"				alias="termAgreeDto" />
+		<typeAlias type="kr.co.bravomylife.front.login.dto.LoginDto"					alias="loginDto" />
+		<typeAlias type="kr.co.bravomylife.front.sale.dto.SaleDto"						alias="saleDto" />
+		<typeAlias type="kr.co.bravomylife.front.buy.dto.BuyDto"						alias="buyDto" />
+		<typeAlias type="kr.co.bravomylife.front.center.dto.BoardDto"					alias="boardDto" />
+		<typeAlias type="kr.co.bravomylife.front.common.dto.PagingDto"					alias="pagingDto" />
+		<typeAlias type="kr.co.bravomylife.front.basket.dto.BasketDto"					alias="basketDto" />
+		<typeAlias type="kr.co.bravomylife.front.buy.dto.BuyDetailDto"					alias="buyDetailDto" />
+		<typeAlias type="kr.co.bravomylife.front.buy.dto.BuyDetailListDto"				alias="buyDetailListDto" />
+		<typeAlias type="kr.co.bravomylife.front.buy.dto.BuyMasterDto"					alias="buyMasterDto" />
+		<typeAlias type="kr.co.bravomylife.front.pay.dto.PayDto"						alias="payDto" />
+		<typeAlias type="kr.co.bravomylife.front.survey.dto.SurveyDto"					alias="surveyDto" />
+		<typeAlias type="kr.co.bravomylife.front.sale.dto.SaleFileDto"					alias="saleFileDto" />
+	</typeAliases>
+	<mappers>
+		<mapper resource="kr/co/bravomylife/front/mybatis/member/Member.xml" />
+		<mapper resource="kr/co/bravomylife/front/mybatis/member/TermAgree.xml" />
+		<mapper resource="kr/co/bravomylife/front/mybatis/login/Login.xml" />
+		<mapper resource="kr/co/bravomylife/front/mybatis/sale/Sale.xml" />
+		<mapper resource="kr/co/bravomylife/front/mybatis/buy/Buy.xml" />
+		<mapper resource="kr/co/bravomylife/front/mybatis/buy/BuyDetail.xml" />
+		<mapper resource="kr/co/bravomylife/front/mybatis/buy/BuyMaster.xml" />
+		<mapper resource="kr/co/bravomylife/front/mybatis/pay/Pay.xml" />
+		<mapper resource="kr/co/bravomylife/front/mybatis/survey/Survey.xml" />
+		<mapper resource="kr/co/bravomylife/front/mybatis/center/Board.xml" />
+		<mapper resource="kr/co/bravomylife/front/mybatis/basket/Basket.xml" />
+	</mappers>
+</configuration>

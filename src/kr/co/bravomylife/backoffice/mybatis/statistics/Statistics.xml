@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.bravomylife.backoffice.mybatis.statistics.Statistics">
+
+	<select id="incomeRegion" parameterType="statisticsDto" resultType="statisticsDto">
+	<![CDATA[
+		WITH months AS (
+			SELECT 1 AS moon FROM DUAL
+			UNION ALL SELECT 2 FROM DUAL
+			UNION ALL SELECT 3 FROM DUAL
+			UNION ALL SELECT 4 FROM DUAL
+			UNION ALL SELECT 5 FROM DUAL
+			UNION ALL SELECT 6 FROM DUAL
+			UNION ALL SELECT 7 FROM DUAL
+			UNION ALL SELECT 8 FROM DUAL
+			UNION ALL SELECT 9 FROM DUAL
+			UNION ALL SELECT 10 FROM DUAL
+			UNION ALL SELECT 11 FROM DUAL
+			UNION ALL SELECT 12 FROM DUAL
+		)
+			SELECT
+				m.moon,
+				NVL(SUM(sub.sale), 0) AS total_sale, 
+				NVL(SUM(sub.cost), 0) AS total_cost,
+				NVL(SUM(sub.income), 0) AS total_income,
+				NVL((select
+				sum(use_point)
+					from
+						tb_buy_mst mst
+					where
+						TO_NUMBER(TO_CHAR(mst.dt_reg, 'YYYY'))		=#{year}
+						and TO_NUMBER(TO_CHAR(mst.dt_reg, 'MM'))	= m.moon
+						), 0) total_use,
+						NVL(NVL(SUM(sub.income), 0) - NVL((select
+				sum(use_point)
+					from
+						tb_buy_mst mst
+					where
+						TO_NUMBER(TO_CHAR(mst.dt_reg, 'YYYY'))		= #{year}
+						and TO_NUMBER(TO_CHAR(mst.dt_reg, 'MM'))	= m.moon
+						), 0), 0) as total_income_point
+			FROM
+				months m
+			LEFT JOIN (
+				SELECT
+					buy.seq_buy_dtl,
+					buy.seq_buy_mst,
+					sle.seq_sle,
+					buy.price,
+					buy.count,
+					buy.price * buy.count AS sale,
+					sle.origin_sale * buy.count AS cost,
+					(buy.price * buy.count) - (sle.origin_sale * buy.count) AS income,
+					TO_NUMBER(TO_CHAR(buy.dt_reg, 'MM')) AS moon 
+				FROM
+					tb_buy_dtl buy
+				JOIN tb_sle sle ON buy.seq_sle = sle.seq_sle
+				WHERE
+					TO_NUMBER(TO_CHAR(buy.dt_reg, 'YYYY')) = #{year}
+			) sub ON m.moon = sub.moon
+			GROUP BY
+				m.moon
+			ORDER BY
+				m.moon
+			]]>
+			</select>
+
+
+	<select id="memberAge" resultType="statisticsBestDto">
+	<![CDATA[
+		SELECT
+			gender,
+			ageGroup,
+			SUM(countAge) AS sumAge
+		FROM (
+			SELECT
+				gender,
+				CASE
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 10 AND 19 THEN '10대'
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 20 AND 29 THEN '20대'
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 30 AND 39 THEN '30대'
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 40 AND 49 THEN '40대'
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 50 AND 59 THEN '50대'
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 60 AND 69 THEN '60대'
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 70 AND 79 THEN '70대'
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 80 AND 89 THEN '80대'
+					ELSE '기타'
+				END AS ageGroup,
+				COUNT(*) AS countAge
+			FROM TB_MBR_MST
+			GROUP BY gender,
+				CASE
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 10 AND 19 THEN '10대'
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 20 AND 29 THEN '20대'
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 30 AND 39 THEN '30대'
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 40 AND 49 THEN '40대'
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 50 AND 59 THEN '50대'
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 60 AND 69 THEN '60대'
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 70 AND 79 THEN '70대'
+					WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, age) / 12) BETWEEN 80 AND 89 THEN '80대'
+					ELSE '기타'
+				END
+		) ageData
+		GROUP BY gender, ageGroup
+	]]>
+	</select>
+
+	<select id="sellingBestName" resultType="statisticsBestDto">
+		select
+			distinct top.seq_sle
+			, (SELECT SLE_NM FROM TB_SLE sle WHERE sle.SEQ_SLE = top.seq_sle) name
+		from
+			(
+			select
+				month
+				, seq_sle
+				, count
+				, rank() over(partition by month order by count desc) rank
+			from
+				(
+				select
+					TO_NUMBER(TO_CHAR(dt_reg, 'MM')) month, seq_sle, sum(count) as count
+				from
+					tb_buy_dtl
+				where
+					TO_NUMBER(TO_CHAR(dt_reg, 'YYYY')) = 2024
+				group by
+					TO_NUMBER(TO_CHAR(dt_reg, 'MM')), seq_sle
+				) order by seq_sle
+			) top
+		where
+			top.rank &lt; 2
+		order by seq_sle
+	</select>
+	
+	<select id="sellingBestList" resultType="statisticsBestDto">
+		select
+			top.month, top.seq_sle, top.count, top.rank
+			, (SELECT SLE_NM FROM TB_SLE sle WHERE sle.SEQ_SLE = top.seq_sle) name
+		from
+			(
+			select
+				month
+				, seq_sle
+				, count
+				, rank() over(partition by month order by count desc) rank
+			from
+				(
+				select
+					TO_NUMBER(TO_CHAR(dt_reg, 'MM')) month, seq_sle, sum(count) as count
+				from
+					tb_buy_dtl
+				where
+					TO_NUMBER(TO_CHAR(dt_reg, 'YYYY')) = 2024
+				group by
+					TO_NUMBER(TO_CHAR(dt_reg, 'MM')), seq_sle
+				) order by month asc, seq_sle
+			) top
+		where
+			top.rank &lt; 2
+	</select>
+	
+	<select id="memberRegisterWithdraw" resultType="memberAgeDto">
+		SELECT 
+			TO_CHAR(dt_reg, 'YYYY-MM') AS month,
+			COUNT(*) AS subscriber_count
+		FROM 
+			tb_mbr_mst
+		WHERE 
+			dt_reg >= TRUNC(ADD_MONTHS(SYSDATE, -12))
+		GROUP BY 
+			TO_CHAR(dt_reg, 'YYYY-MM')
+		ORDER BY 
+			month
+	</select>
+</mapper> 

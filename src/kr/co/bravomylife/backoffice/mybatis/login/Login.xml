@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.bravomylife.backoffice.mybatis.login.Login">
+
+	<select id="exist" parameterType="loginDto" resultType="managerDto">
+		SELECT
+			SEQ_MNG
+			, EMAIL
+			, PASSWD
+			, MNG_NM
+		FROM
+			TB_MNG
+		WHERE
+			EMAIL	= #{email}
+			AND CD_STATE	= 1
+			AND ROWNUM		= 1
+			
+	</select>
+</mapper>

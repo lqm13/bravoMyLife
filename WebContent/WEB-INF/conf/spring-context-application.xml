@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/mvc"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:cache="http://www.springframework.org/schema/cache"
+	xmlns:task="http://www.springframework.org/schema/task"
+	xsi:schemaLocation="http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-4.2.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.2.xsd 
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.2.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.2.xsd
+		http://www.springframework.org/schema/cache http://www.springframework.org/schema/cache/spring-cache.xsd
+		http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task-4.2.xsd">
+	
+	<annotation-driven />
+	
+	<aop:aspectj-autoproxy />
+	<beans:bean name="commonAop" class="kr.co.bravomylife.common.aop.CommonAop" />
+	
+	<task:annotation-driven />
+	<beans:bean id="systemScheduler" class="kr.co.bravomylife.common.scheduler.SystemSchd" />
+	
+	<beans:bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+		<!-- MAX Size: 10MB + 1Byte -->
+		<!-- <beans:property name="maxUploadSize" value="10485761" /> -->
+	</beans:bean>
+	
+	<beans:bean id="fileDownloadView" class="kr.co.bravomylife.common.view.FileDownloadView" />
+	<beans:bean class="org.springframework.web.servlet.view.BeanNameViewResolver">
+		<beans:property name="order" value="1"/>
+	</beans:bean>
+	
+	<beans:bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<beans:property name="prefix" value="/WEB-INF/view/" />
+		<beans:property name="suffix" value=".jsp" />
+		<beans:property name="order" value="2" />
+	</beans:bean>
+	
+	<beans:bean class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+		<beans:property name="objectMapper">
+			<beans:bean class="org.springframework.http.converter.json.Jackson2ObjectMapperFactoryBean"/>
+		</beans:property>
+	</beans:bean>
+	
+	<context:component-scan base-package="kr.co.bravomylife" use-default-filters="false">
+		<context:include-filter type="regex" expression="kr.co.bravomylife..*Ctrl.*" />
+		<context:include-filter type="regex" expression="kr.co.bravomylife..*Api.*" />
+		<context:include-filter type="regex" expression="kr.co.bravomylife..*Web.*" />
+	</context:component-scan>
+	
+	<!--
+	<mvc:interceptors>
+		<interceptor>
+			<mvc:mapping path="/console/**" />
+			<beans:bean class="kr.co.bravomylife.backoffice.common.interceptor.BackofficeItrc" >
+			</beans:bean>
+		</interceptor>
+		
+		
+		<interceptor>
+			<mvc:mapping path="/front/**" />
+			<beans:bean class="kr.co.bravomylife.front.common.interceptor.FrontItrc" >
+			</beans:bean>
+		</interceptor>
+	</mvc:interceptors>
+	-->
+	<!--
+	<mvc:interceptors>	
+		<interceptor>
+			<mvc:mapping path="/front/**" />
+			<exclude-mapping path="/front/sale/function_list.web" />
+			<exclude-mapping path="/front/sale/ingredient_list.web" />
+			<exclude-mapping path="/front/sale/gender_list.web" />
+			<exclude-mapping path="/front/sale/total_list.web" />
+			<exclude-mapping path="/front/index.web" />
+			<exclude-mapping path="/front/member/registerForm.web" />
+			<exclude-mapping path="/front/member/registerProc.web" />
+			<exclude-mapping path="/front/member/confirmEmail.web" />
+			<exclude-mapping path="/front/login/loginForm.web" />
+			<exclude-mapping path="/front/login/loginProc.web" />
+			<exclude-mapping path="/front/login/logout.web" />
+			<exclude-mapping path="/front/**/*.json" />
+			<exclude-mapping path="/front/**/*.api" />
+			<beans:bean class="kr.co.bravomylife.front.common.interceptor.FrontItrc" >
+			</beans:bean>
+		</interceptor>
+	</mvc:interceptors>
+	-->
+	
+</beans:beans>

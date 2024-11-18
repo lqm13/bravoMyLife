@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.bravomylife.backoffice.mybatis.product.Product">
+
+	<update id="update" parameterType="productDto">
+		UPDATE
+			TB_SLE
+		SET
+			SLE_NM			= #{sle_nm}
+			<if test="img != null and img != ''">
+			, IMG			= #{img}
+			</if>
+			<if test="desces != null and desces != ''">
+			, DESCES 		= #{desces}
+			</if>
+			, ORIGIN_SALE	= #{origin_sale}
+			, CD_CTG_B		= #{cd_ctg_b}
+			, CD_CTG_M		= #{cd_ctg_m}
+			, CD_STATE_SALE	= #{cd_state_sale}
+			, COUNT_STOCK	= #{count_stock}
+			, POINT_STACK	= #{point_stack}
+			, PRICE_SALE	= ROUND(((#{origin_sale} * (#{margin_rate} / 100)) + #{origin_sale}), -1)
+			, FLG_DELETE	= #{flg_delete}
+			, DT_SALE_START	= #{dt_sale_start}
+			, DT_SALE_END	= #{dt_sale_end}
+			, DISCOUNT		= #{discount}
+			, MARGIN_RATE	= #{margin_rate}
+			, DT_UPT		= SYSDATE
+			, UPDATER		= #{updater}
+		WHERE
+			REGISTER		= #{register}
+			AND SEQ_SLE		= #{seq_sle}
+	</update>
+
+	<update id="re" parameterType="productDto">
+		UPDATE
+			TB_SLE
+		SET
+			CD_STATE_SALE	= 2
+			, DT_UPT		= SYSDATE
+			, UPDATER		= #{updater}
+		WHERE
+			REGISTER		= #{register}
+			AND SEQ_SLE		= #{seq_sle}
+	</update>
+
+	<update id="out" parameterType="productDto">
+		UPDATE
+			TB_SLE
+		SET
+			CD_STATE_SALE	= 9
+			, DT_UPT		= SYSDATE
+			, UPDATER		= #{updater}
+		WHERE
+			REGISTER		= #{register}
+			AND SEQ_SLE		= #{seq_sle}
+	</update>
+
+	<update id="stop" parameterType="productDto">
+		UPDATE
+			TB_SLE
+		SET
+			CD_STATE_SALE	= 3
+			, DT_UPT		= SYSDATE
+			, UPDATER		= #{updater}
+		WHERE
+			REGISTER		= #{register}
+			AND SEQ_SLE		= #{seq_sle}
+	</update>
+
+	<select id="select" parameterType="productDto" resultType="productDto">
+		SELECT
+			SEQ_SLE
+			, SLE_NM
+			, DESCES
+			, IMG
+			, PRICE_SALE
+			, ORIGIN_SALE
+			, CD_CTG_B
+			, CD_CTG_M
+			, CD_STATE_SALE
+			, COUNT_STOCK
+			, POINT_STACK
+			, FLG_DELETE
+			, TO_CHAR(DT_SALE_START, 'YYYY-MM-DD')	DT_SALE_START
+			, TO_CHAR(DT_SALE_END, 'YYYY-MM-DD')	DT_SALE_END
+			, DISCOUNT
+			, MARGIN_RATE
+		FROM
+			TB_SLE
+		WHERE
+			REGISTER		= #{register}
+			AND SEQ_SLE		= #{seq_sle}
+	</select>
+
+	<select id="list" parameterType="pagingDto" resultType="productDto">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				/*+ first_rows(10) */ ROW_NUMBER() OVER (ORDER BY DT_REG DESC) rnum
+				, SEQ_SLE
+				, SLE_NM
+				, CORP_NM
+				, CD_STATE_SALE
+				, PRICE_SALE
+				, TO_CHAR(DT_REG, 'YYYY-MM-DD') dt_reg
+			FROM
+				TB_SLE
+			WHERE
+				<include refid="where" />
+			)
+		<![CDATA[
+		WHERE
+			rnum >= (${currentPage} - 1) * ${linePerPage} + 1 AND rnum <= ${currentPage} * ${linePerPage}
+		]]> 
+		ORDER BY
+			rnum
+	</select>
+
+	<select id="count" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(ROWNUM)
+		FROM
+			TB_SLE
+		WHERE
+			<include refid="where" />
+	</select>
+	
+	<sql id="where">
+			REGISTER = #{register}
+		<if test="searchWord != null and searchWord != ''">
+			<if test="searchKey == 'sle_nm'">
+				AND UPPER(SLE_NM) LIKE UPPER('%' || #{searchWord} || '%')
+			</if>
+			<if test="searchKey == 'corp_nm'">
+				AND UPPER(CORP_NM) LIKE UPPER('%' || #{searchWord} || '%')
+			</if>
+			<if test="searchKey == 'sle_nm_and_corp_nm'">
+				AND (
+					UPPER(CORP_NM) LIKE UPPER('%' || #{searchWord} || '%')
+					OR
+					UPPER(SLE_NM) LIKE UPPER('%' || #{searchWord} || '%')
+				)
+			</if>
+		</if>
+		<choose>
+			<when test="cd_state_sale != null and cd_state_sale != '' and cd_state_sale != 0">
+				AND CD_STATE_SALE = #{cd_state_sale}
+			</when>
+			<otherwise>
+				AND CD_STATE_SALE IN (1, 2, 3, 9)
+			</otherwise>
+		</choose>
+		<choose>
+			<when test="cd_ctg_b != null and cd_ctg_b != '' and cd_ctg_b != 0">
+				AND CD_CTG_B = #{cd_ctg_b}
+			</when>
+			<otherwise>
+				AND cd_ctg_b IN (1, 2, 3)
+			</otherwise>
+		</choose>
+		<choose>
+			<when test="cd_ctg_m != null and cd_ctg_m != '' and cd_ctg_m != 0 ">
+				AND CD_CTG_M = #{cd_ctg_m}
+			</when>
+			<otherwise>
+				AND cd_ctg_m IN (1, 2, 3, 4, 5, 6, 7, 8, 9)
+			</otherwise>
+		</choose>
+	</sql>
+
+	<insert id="insert" parameterType="productDto">
+		INSERT INTO TB_SLE
+			(SEQ_SLE, SLE_NM, PRICE_SALE, IMG, DESCES, CD_CTG_B, CD_CTG_M, CD_STATE_SALE, PRD_TYPE, COUNT_STOCK, CORP_NM, FLG_DELETE, DT_SALE_START, DT_SALE_END, DISCOUNT, DT_REG, REGISTER, POINT_STACK, ORIGIN_SALE, MARGIN_RATE)
+		VALUES
+			(SQ_SEQ_SLE.NEXTVAL, #{sle_nm}, (ROUND(((#{origin_sale} * (#{margin_rate} / 100)) + #{origin_sale}), -1)), #{img}, #{desces}, #{cd_ctg_b}, #{cd_ctg_m}, #{cd_state_sale}, #{prd_type}, #{count_stock}, #{corp_nm}, 'N', TO_DATE(#{dt_sale_start}, 'YYYY-MM-DD HH24:MI:SS'), TO_DATE(#{dt_sale_end}, 'YYYY-MM-DD HH24:MI:SS'), #{discount}, SYSDATE, 1, #{point_stack}, #{origin_sale}, #{margin_rate})
+	</insert>
+
+</mapper>

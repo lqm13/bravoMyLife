@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.bravomylife.front.mybatis.buy.BuyMaster">
+	
+	<update id="update" parameterType="buyMasterDto">
+		UPDATE
+			TB_BUY_MST
+		SET
+			CD_STATE_PAY	= #{cd_state_pay}
+			, CD_STATE		= 1
+			, DT_UPT		= SYSDATE
+			, UPDATER		= #{updater}
+			, CD_STATE_DELIVERY = 'C'
+		WHERE
+			SEQ_BUY_MST 	= #{seq_buy_mst}
+	</update>
+	
+	<insert id="insert" parameterType="buyMasterDto">
+		INSERT INTO TB_BUY_MST
+			(SEQ_BUY_MST, SEQ_MBR, SEQ_MBR_ADDR ,BUY_INFO, BUY_COUNT, BUY_PRICE, BUY_POINT,FLG_DELETE, CD_STATE, CD_STATE_PAY, CD_STATE_DELIVERY, USE_POINT, DELIVERY_REQUEST, DT_REG, REGISTER)
+		VALUES
+			(#{seq_buy_mst}, #{seq_mbr}, #{seq_mbr_addr}, #{buy_info}, #{buy_count}, #{buy_price}, #{total_point},'N', NULL, NULL, NULL, #{use_point}, #{delivery_request}, SYSDATE, #{seq_mbr})
+	</insert>
+	
+	<select id="sequence" resultType="java.lang.Integer">
+		SELECT SQ_SEQ_BUY_MST.NEXTVAL FROM DUAL
+	</select>
+	
+</mapper>

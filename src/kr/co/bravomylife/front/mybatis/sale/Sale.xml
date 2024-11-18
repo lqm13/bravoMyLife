@@ -1,0 +1,1576 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.bravomylife.front.mybatis.sale.Sale">
+
+	<select id="reviewListCount" parameterType="saleDto" resultType="saleDto">
+	SELECT
+		(SELECT COUNT(*)
+			FROM TB_SLE sle
+				LEFT JOIN
+					TB_REVIEW review
+				ON sle.SEQ_SLE = review.SEQ_SLE
+				LEFT JOIN
+					TB_MBR_MST mbr
+				ON review.SEQ_MBR = mbr.SEQ_MBR
+				LEFT JOIN
+					TB_RATE rate
+				ON rate.SEQ_REVIEW = review.SEQ_REVIEW
+				LEFT JOIN
+					TB_BUY_DTL dtl
+				ON dtl.SEQ_REVIEW = review.SEQ_REVIEW
+					AND dtl.SEQ_SLE = review.SEQ_SLE
+					AND dtl.SEQ_MBR = review.SEQ_MBR
+			WHERE review.SEQ_MBR = #{seq_mbr}
+			AND review.FLG_DELETE = 'N'
+		) AS writeReview_count
+	FROM DUAL
+	</select>
+
+	<update id="schedule_best_y">
+	UPDATE
+		TB_BEST
+	SET
+		FLG_BEST = 'Y'
+		, DT_UPT = SYSDATE
+	WHERE
+		SEQ_BEST IN (
+			SELECT
+				SEQ_BEST
+			FROM (
+				SELECT
+					SEQ_BEST
+				FROM
+					TB_BEST
+				ORDER BY
+					COUNT DESC
+				)
+		<![CDATA[
+		WHERE ROWNUM <= 20
+		]]>
+		)
+	</update>
+
+	<update id="schedule_best_n">
+		UPDATE
+			TB_BEST
+		SET
+			FLG_BEST		=	'N'
+			, DT_UPT		=	SYSDATE
+	</update>
+
+	<select id="mainSubCount" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(ROWNUM)
+		FROM
+			TB_SLE sle
+		LEFT JOIN (
+			SELECT
+				SEQ_SLE,
+				MAX(FLG_BEST) flg_best
+			FROM
+				TB_BEST
+			GROUP BY SEQ_SLE
+		) best
+		ON
+			sle.SEQ_SLE = best.SEQ_SLE
+		WHERE
+		<include refid="mainSubwhere" />
+	</select>
+
+	<select id="mainSubList" parameterType="pagingDto" resultType="saleDto">
+		SELECT
+			*
+		FROM
+		(
+		SELECT
+			/*+ first_rows(10) */ ROW_NUMBER() OVER (ORDER BY sle.DT_REG DESC) rnum
+			, sle.SEQ_SLE
+			, sle.SLE_NM
+			, sle.IMG
+			, sle.PRICE_SALE
+			, sle.CD_CTG_B
+			, sle.CD_CTG_M
+			, sle.PRD_TYPE
+			, sle.CORP_NM
+			, sle.DISCOUNT
+			, sle.COUNT_STOCK
+			, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) AS discount_sale
+			, TO_CHAR(sle.DT_REG, 'YYYY-MM-DD') dt_reg
+			, NVL(rate_summary.total_count, 0) total_count
+			, ROUND(CASE 
+				WHEN NVL(rate_summary.total_count, 0) > 0 THEN rate_summary.total_star_rate / rate_summary.total_count
+				ELSE 0
+			END, 0) star
+			, best.FLG_BEST
+		FROM
+			TB_SLE sle
+		LEFT JOIN (
+			SELECT
+				rate.SEQ_SLE
+				, SUM(rate.RATE_STAR) total_star_rate
+				, NVL(SUM(rate.COUNT), 0) total_count
+			FROM
+				TB_RATE rate
+			INNER JOIN
+				TB_REVIEW review
+			ON
+				rate.SEQ_REVIEW = review.SEQ_REVIEW
+			WHERE
+				review.FLG_DELETE = 'N'
+			GROUP BY rate.SEQ_SLE
+		) rate_summary
+		ON
+			sle.SEQ_SLE = rate_summary.SEQ_SLE
+		LEFT JOIN (
+			SELECT
+				SEQ_SLE,
+				MAX(FLG_BEST) flg_best
+			FROM
+				TB_BEST
+			GROUP BY SEQ_SLE
+		) best
+		ON
+			sle.SEQ_SLE = best.SEQ_SLE
+		WHERE
+		<include refid="mainSubwhere" />
+		)
+		<![CDATA[
+		WHERE rnum <= ${linePerPage}
+		]]>
+		ORDER BY rnum
+	</select>
+
+	<sql id="mainSubwhere">
+		sle.CD_STATE_SALE		= 2
+		AND sle.FLG_DELETE		= 'N'
+		AND (best.FLG_BEST IS NULL OR best.FLG_BEST = 'N')
+		<![CDATA[
+		AND sle.COUNT_STOCK > 0
+		]]>
+		<![CDATA[
+		AND SYSDATE >= sle.DT_SALE_START AND SYSDATE <= sle.DT_SALE_END
+		]]>
+	</sql>
+
+	<select id="mainCount" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(ROWNUM)
+		FROM
+			TB_SLE sle
+		WHERE
+		<include refid="mainwhere" />
+	</select>
+
+	<select id="mainList" parameterType="pagingDto" resultType="saleDto">
+		SELECT
+			*
+		FROM
+		(
+		SELECT
+			/*+ first_rows(10) */ ROW_NUMBER() OVER (ORDER BY NVL(best.flg_best, 'N') DESC) rnum
+			, sle.SEQ_SLE
+			, sle.SLE_NM
+			, sle.IMG
+			, sle.PRICE_SALE
+			, sle.CD_CTG_B
+			, sle.CD_CTG_M
+			, sle.PRD_TYPE
+			, sle.CORP_NM
+			, sle.DISCOUNT
+			, sle.COUNT_STOCK
+			, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) AS discount_sale
+			, TO_CHAR(sle.DT_REG, 'YYYY-MM-DD') dt_reg
+			, NVL(rate_summary.total_count, 0) total_count
+			, ROUND(CASE 
+				WHEN NVL(rate_summary.total_count, 0) > 0 THEN rate_summary.total_star_rate / rate_summary.total_count
+				ELSE 0
+			END, 0) star
+			, best.FLG_BEST
+		FROM
+			TB_SLE sle
+		LEFT JOIN (
+			SELECT
+				rate.SEQ_SLE
+				, SUM(rate.RATE_STAR) total_star_rate
+				, NVL(SUM(rate.COUNT), 0) total_count
+			FROM
+				TB_RATE rate
+			INNER JOIN
+				TB_REVIEW review
+			ON
+				rate.SEQ_REVIEW = review.SEQ_REVIEW
+			WHERE
+				review.FLG_DELETE = 'N'
+			GROUP BY rate.SEQ_SLE
+		) rate_summary
+		ON
+			sle.SEQ_SLE = rate_summary.SEQ_SLE
+		LEFT JOIN (
+			SELECT
+				SEQ_SLE,
+				MAX(NVL(FLG_BEST, 'N')) AS flg_best
+			FROM
+				TB_BEST
+			GROUP BY SEQ_SLE
+		) best
+		ON
+			sle.SEQ_SLE = best.SEQ_SLE
+		WHERE
+		<include refid="mainwhere" />
+		)
+		<![CDATA[
+		WHERE rnum <= ${linePerPage}
+		]]>
+		ORDER BY rnum
+	</select>
+
+	<sql id="mainwhere">
+		sle.CD_STATE_SALE		= 2
+		AND sle.FLG_DELETE		= 'N'
+		<![CDATA[
+		AND sle.COUNT_STOCK > 0
+		]]>
+		<![CDATA[
+		AND SYSDATE >= sle.DT_SALE_START AND SYSDATE <= sle.DT_SALE_END
+		]]>
+	</sql>
+
+	<update id="reviewDelete" parameterType="saleDto">
+		UPDATE
+			TB_REVIEW
+		SET
+			FLG_DELETE		=	'Y'
+			, UPDATER		=	#{seq_mbr}
+			, DT_UPT		=	SYSDATE
+		WHERE
+			SEQ_MBR			=	#{seq_mbr}
+			AND SEQ_SLE		=	#{seq_sle}
+			AND SEQ_REVIEW	=	#{seq_review}
+	</update>
+
+	<delete id="deleteReviewImgIn" parameterType="saleFileDto">
+		DELETE
+		FROM
+			TB_REVIEW_IMG
+		WHERE
+			SEQ_MBR				=	#{seq_mbr}
+			AND SEQ_SLE			=	#{seq_sle}
+			AND SEQ_REVIEW		=	#{seq_review}
+			AND SEQ_REVIEW_IMG	=	#{review_imgs}
+	</delete>
+
+	<update id="rateModify" parameterType="saleDto">
+		UPDATE
+			TB_RATE
+		SET
+			RATE_STAR		=	#{rate_star}
+			, UPDATER		=	#{seq_mbr}
+			, DT_UPT		=	SYSDATE
+		WHERE
+			SEQ_MBR			=	#{seq_mbr}
+			AND SEQ_SLE		=	#{seq_sle}
+			AND SEQ_REVIEW	=	#{seq_review}
+	</update>
+
+	<update id="modifyText" parameterType="saleDto">
+		UPDATE
+			TB_REVIEW
+		SET
+			RATE_REVIEW		=	#{rate_review}
+			, UPDATER		=	#{seq_mbr}
+			, DT_UPT		=	SYSDATE
+		WHERE
+			SEQ_MBR			=	#{seq_mbr}
+			AND SEQ_SLE		=	#{seq_sle}
+			AND SEQ_REVIEW	=	#{seq_review}
+	</update>
+
+	<update id="modifyReview" parameterType="saleDto">
+		UPDATE
+			TB_REVIEW
+		SET
+			RATE_REVIEW		=	#{rate_review}
+			, UPDATER		=	#{seq_mbr}
+			, DT_UPT		=	SYSDATE
+		WHERE
+			SEQ_MBR			=	#{seq_mbr}
+			AND SEQ_SLE		= 	#{seq_sle}
+			AND SEQ_REVIEW	=	#{seq_review}
+	</update>
+
+	<update id="modifyReviewFileIn" parameterType="saleFileDto">
+		UPDATE
+			TB_REVIEW_IMG
+		SET
+			FILE_SAVE			=	#{file_save}
+			, FILE_ORIG			=	#{file_orig}
+		WHERE
+			SEQ_MBR				=	#{seq_mbr}
+			AND SEQ_SLE			=	#{seq_sle}
+			AND SEQ_REVIEW		=	#{seq_review}
+			AND SEQ_REVIEW_IMG	=	#{review_imgIn}
+	</update>
+
+	<update id="modifyReviewFile" parameterType="saleFileDto">
+		UPDATE
+			TB_REVIEW_IMG
+		SET
+			FILE_SAVE			=	#{file_save}
+			, FILE_ORIG			=	#{file_orig}
+		WHERE
+			SEQ_MBR				=	#{seq_mbr}
+			AND SEQ_SLE			=	#{seq_sle}
+			AND SEQ_REVIEW		=	#{seq_review}
+			AND SEQ_REVIEW_IMG	=	#{review_imgs}
+	</update>
+
+	<insert id="insertReviewModify" parameterType="saleFileDto">
+		INSERT INTO TB_REVIEW_IMG
+			(SEQ_REVIEW_IMG, SEQ_REVIEW, SEQ_SLE, SEQ_MBR, FILE_SAVE, FILE_ORIG)
+		VALUES
+			(SQ_SEQ_REVIEW_IMG.NEXTVAL, #{seq_review}, #{seq_sle}, #{seq_mbr}, #{file_save}, #{file_orig})
+	</insert>
+
+	<delete id="deleteReviewImg" parameterType="saleFileDto">
+		DELETE
+		FROM
+			TB_REVIEW_IMG
+		WHERE
+			SEQ_MBR				=	#{seq_mbr}
+			AND SEQ_SLE			=	#{seq_sle}
+			AND SEQ_REVIEW		=	#{seq_review}
+			AND SEQ_REVIEW_IMG	=	#{review_imgs}
+	</delete>
+
+	<select id="reviewModifyImgs" parameterType="saleDto" resultType="saleDto">
+		SELECT
+			SEQ_REVIEW
+			, FILE_SAVE
+			, SEQ_REVIEW_IMG
+		FROM
+			TB_REVIEW_IMG
+		WHERE
+			SEQ_REVIEW IN (
+				SELECT
+					SEQ_REVIEW 
+				FROM
+					TB_REVIEW 
+				WHERE
+					SEQ_MBR = #{seq_mbr}
+					AND SEQ_REVIEW = #{seq_review}
+					AND SEQ_SLE = #{seq_sle}
+			)
+	</select>
+
+	<select id="reviewModify" parameterType="saleDto" resultType="saleDto">
+		SELECT
+			dtl.SLE_NM
+			, review.SEQ_REVIEW
+			, dtl.SEQ_BUY_DTL
+			, review.SEQ_SLE
+			, dtl.COUNT
+			, TO_CHAR(dtl.DT_REG, 'YYYY-MM-DD') dt_reg
+			, review.RATE_REVIEW
+			, rate.RATE_STAR
+			, sle.IMG
+		FROM 
+			TB_REVIEW review
+		LEFT JOIN 
+			TB_BUY_DTL dtl
+		ON 
+			review.SEQ_REVIEW = dtl.SEQ_REVIEW
+			AND dtl.SEQ_BUY_DTL = #{seq_buy_dtl}
+		LEFT JOIN
+			TB_RATE rate
+		ON
+			review.SEQ_REVIEW = rate.SEQ_REVIEW
+		LEFT JOIN
+			TB_SLE sle
+		ON
+			review.SEQ_SLE = sle.SEQ_SLE
+		WHERE 
+			review.SEQ_MBR = #{seq_mbr}
+			AND review.SEQ_REVIEW = #{seq_review}
+			AND review.SEQ_SLE = #{seq_sle}
+	</select>
+
+	<select id="reviewPageListImgs" parameterType="pagingDto" resultType="saleDto">
+		SELECT
+			SEQ_REVIEW
+			, FILE_SAVE
+		FROM
+			TB_REVIEW_IMG
+		WHERE
+			SEQ_REVIEW IN (
+				SELECT
+					SEQ_REVIEW 
+				FROM
+					TB_REVIEW 
+				WHERE
+					SEQ_MBR = #{seq_mbr}
+			)
+	</select>
+
+	<select id="reviewPageList" parameterType="pagingDto" resultType="saleDto">
+		SELECT
+			*
+		FROM
+		(
+		SELECT
+			/*+ first_rows(10) */ ROW_NUMBER() OVER (ORDER BY review.DT_REG DESC) rnum
+			, review.SEQ_REVIEW
+			, sle.SEQ_SLE
+			, sle.IMG
+			, review.SEQ_MBR
+			, review.FLG_DELETE
+			, review.RATE_REVIEW
+			, TO_CHAR(review.DT_REG, 'YYYY-MM-DD') dt_reg
+			, mbr.MBR_NM
+			, sle.CD_CTG_M
+			, sle.CD_CTG_B
+			, rate.RATE_STAR AS mbr_rate_star
+			, dtl.SLE_NM
+			, dtl.COUNT
+			, COUNT(*) OVER () writeReview_count
+			, dtl.SEQ_BUY_DTL
+		FROM
+			TB_SLE sle
+		LEFT JOIN
+			TB_REVIEW review
+		ON
+			sle.SEQ_SLE = review.SEQ_SLE
+		LEFT JOIN
+			TB_MBR_MST mbr
+		ON
+			review.SEQ_MBR = mbr.SEQ_MBR
+		LEFT JOIN
+			TB_RATE rate
+		ON
+			rate.SEQ_REVIEW = review.SEQ_REVIEW
+		LEFT JOIN
+			TB_BUY_DTL dtl
+		ON
+			dtl.SEQ_REVIEW = review.SEQ_REVIEW
+			AND dtl.SEQ_SLE = review.SEQ_SLE
+			AND dtl.SEQ_MBR = review.SEQ_MBR
+		WHERE
+		<include refid="reviewPagewhere" />
+		)
+		<![CDATA[
+		WHERE rnum >= (${currentPage} - 1) * ${linePerPage} + 1 AND rnum <= ${currentPage} * ${linePerPage}
+		]]>
+		ORDER BY rnum
+	</select>
+	
+	<sql id="reviewPagewhere">
+		review.SEQ_MBR		= #{seq_mbr}
+		AND review.FLG_DELETE	= 'N'
+	</sql>
+
+	<select id="reviewPageCount" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(ROWNUM)
+		FROM
+			TB_REVIEW review
+		WHERE
+		<include refid="reviewPagewhere" />
+	</select>
+
+	<update id="updateCountStock" parameterType="buyDetailDto">
+		UPDATE
+			TB_SLE
+		SET
+			COUNT_STOCK	= COUNT_STOCK - #{count}
+		WHERE
+			SEQ_SLE = #{seq_sle}
+	</update>
+
+	<update id="dtlUpdate" parameterType="saleDto">
+		UPDATE
+			TB_BUY_DTL
+		SET
+			FLG_REVIEW	= 'Y'
+			, SEQ_REVIEW = #{seq_review}
+		WHERE
+			SEQ_MBR = 		#{seq_mbr}
+			AND SEQ_SLE = 	#{seq_sle}
+			AND SEQ_BUY_DTL = #{seq_buy_dtl}
+	</update>
+
+	<update id="deleteLike" parameterType="saleDto">
+		UPDATE
+			TB_LIKE
+		SET
+			FLG_LIKE	= 'N'
+			, DT_UPT	= SYSDATE
+			, UPDATER	= #{updater}
+		WHERE
+			SEQ_MBR = 		#{seq_mbr}
+			AND SEQ_SLE = 	#{seq_sle}
+	</update>
+	
+	<select id="review" parameterType="saleDto" resultType="saleDto">
+		SELECT
+			sle.SLE_NM
+			, sle.IMG
+			, sle.CD_CTG_B
+			, sle.CD_CTG_M
+			, buy_dtl.SEQ_BUY_DTL
+			, buy_dtl.SEQ_SLE
+			, buy_dtl.COUNT
+			, TO_CHAR(buy_dtl.DT_REG, 'YYYY-MM-DD') dt_reg
+		FROM 
+			TB_SLE sle
+		JOIN 
+			TB_BUY_DTL buy_dtl
+		ON 
+			sle.SEQ_SLE = buy_dtl.SEQ_SLE
+			AND buy_dtl.SEQ_MBR = #{seq_mbr}
+		WHERE 
+			buy_dtl.SEQ_MBR = #{seq_mbr}
+			AND buy_dtl.SEQ_BUY_DTL = #{seq_buy_dtl}
+			AND FLG_REVIEW = 'N'
+	</select>
+
+	<select id="reviewListPage" parameterType="saleDto" resultType="saleDto">
+		SELECT
+			sle.SLE_NM
+			, sle.IMG
+			, COUNT(*) OVER () list_count
+			, sle.CD_CTG_B
+			, sle.CD_CTG_M
+			, buy_dtl.SEQ_BUY_DTL
+			, buy_dtl.SEQ_SLE
+			, buy_dtl.COUNT
+			, TO_CHAR(buy_dtl.DT_REG, 'YYYY-MM-DD') dt_reg
+		FROM 
+			TB_SLE sle
+		JOIN 
+			TB_BUY_DTL buy_dtl
+		ON 
+			sle.SEQ_SLE = buy_dtl.SEQ_SLE
+			AND buy_dtl.SEQ_MBR = #{seq_mbr}
+		LEFT JOIN
+			TB_BUY_MST buy_mst
+		ON
+			buy_dtl.SEQ_MBR = buy_mst.SEQ_MBR
+			AND buy_dtl.SEQ_BUY_MST = buy_mst.SEQ_BUY_MST
+		WHERE 
+			buy_dtl.SEQ_MBR = #{seq_mbr}
+			AND FLG_REVIEW = 'N'
+			AND buy_mst.CD_STATE = '1'
+			AND buy_mst.CD_STATE_PAY = 'Y'
+	</select>
+
+	<insert id="rateInsert" parameterType="saleDto">
+		INSERT INTO TB_RATE
+			(SEQ_RATE, SEQ_SLE, SEQ_REVIEW, SEQ_MBR, COUNT, RATE_STAR, DT_REG, REGISTER, DT_UPT, UPDATER)
+		VALUES
+			(#{seq_rate}, #{seq_sle}, #{seq_review}, #{seq_mbr}, 1, #{rate_star}, SYSDATE, #{register}, NULL, NULL)
+	</insert>
+
+	<update id="rateUpdate" parameterType="saleDto">
+		UPDATE
+			TB_RATE
+		SET
+			RATE_STAR		= #{rate_star}
+			, DT_UPT		= SYSDATE
+			, UPDATE		= #{seq_mbr}
+		WHERE
+			SEQ_MBR			= #{seq_mbr}
+			AND SEQ_SLE		= #{seq_sle}
+	</update>
+
+	<select id="reviewCheck" parameterType="saleDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(SEQ_SLE)
+		FROM
+			TB_REVIEW
+		WHERE
+			SEQ_MBR			= #{seq_mbr}
+			AND SEQ_SLE		= #{seq_sle}
+			AND FLG_DELETE	= 'N'
+	</select>
+
+	<select id="rateCheck" parameterType="saleDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(SEQ_SLE)
+		FROM
+			TB_RATE
+		WHERE
+			SEQ_MBR			= #{seq_mbr}
+			AND SEQ_SLE		= #{seq_sle}
+	</select>
+
+	<select id="rateSequence" resultType="java.lang.Integer">
+		SELECT SQ_SEQ_RATE.NEXTVAL FROM DUAL
+	</select>
+
+	<select id="sequence" resultType="java.lang.Integer">
+		SELECT SQ_SEQ_REVIEW.NEXTVAL FROM DUAL
+	</select>
+
+	<insert id="insertText" parameterType="saleDto">
+		INSERT INTO TB_REVIEW
+			(SEQ_REVIEW, SEQ_SLE, SEQ_MBR, FLG_DELETE, RATE_REVIEW, DT_REG, REGISTER, DT_UPT, UPDATER)
+		VALUES
+			(#{seq_review}, #{seq_sle}, #{seq_mbr}, 'N', #{rate_review}, SYSDATE, #{register}, NULL, NULL)
+	</insert>
+
+	<insert id="insertReview" parameterType="saleDto">
+		INSERT INTO TB_REVIEW
+			(SEQ_REVIEW, SEQ_SLE, SEQ_MBR, FLG_DELETE, RATE_REVIEW, DT_REG, REGISTER, DT_UPT, UPDATER)
+		VALUES
+			(#{seq_review}, #{seq_sle}, #{seq_mbr}, 'N', #{rate_review}, SYSDATE, #{register}, NULL, NULL)
+	</insert>
+	
+	<insert id="insertReviewFile" parameterType="saleFileDto">
+		INSERT INTO TB_REVIEW_IMG
+			(SEQ_REVIEW_IMG, SEQ_REVIEW, SEQ_SLE, SEQ_MBR, FILE_SAVE, FILE_ORIG)
+		VALUES
+			(SQ_SEQ_REVIEW_IMG.NEXTVAL, #{seq_review}, #{seq_sle}, #{seq_mbr}, #{file_save}, #{file_orig})
+	</insert>
+
+	<insert id="setLikeInsert" parameterType="saleDto">
+		INSERT INTO TB_LIKE
+			(SEQ_LIKE, SEQ_MBR, SEQ_SLE, FLG_LIKE, DT_REG, REGISTER, DT_UPT, UPDATER)
+		VALUES
+			(SQ_SEQ_LIKE.NEXTVAL, #{seq_mbr}, #{seq_sle}, #{flg_like}, SYSDATE, #{register}, NULL, NULL)
+	</insert>
+
+	<update id="setLikeUpdate" parameterType="saleDto">
+		UPDATE
+			TB_LIKE
+		SET
+			FLG_LIKE		= #{flg_like}
+			, DT_UPT		= SYSDATE
+		WHERE
+			SEQ_MBR			= #{seq_mbr}
+			AND SEQ_SLE		= #{seq_sle}
+			AND FLG_LIKE	= 'N'
+	</update>
+
+	<select id="setLikeCheck" parameterType="saleDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(SEQ_SLE)
+		FROM
+			TB_LIKE
+		WHERE
+			SEQ_MBR			= #{seq_mbr}
+			AND SEQ_SLE		= #{seq_sle}
+	</select>
+
+	<update id="delLike" parameterType="saleDto">
+		UPDATE
+			TB_LIKE
+		SET
+			FLG_LIKE		= #{flg_like}
+			, DT_UPT = SYSDATE
+		WHERE
+			SEQ_MBR			= #{seq_mbr}
+			AND SEQ_SLE		= #{seq_sle}
+			AND FLG_LIKE	= 'Y'
+	</update>
+
+	<select id="reviewCounts" parameterType="saleDto" resultType="saleDto">
+		SELECT
+			COUNT(SEQ_REVIEW) review_count
+		FROM
+			TB_REVIEW
+		WHERE
+			SEQ_SLE			= #{seq_sle}
+			AND FLG_DELETE		= 'N'
+	</select>
+
+	<select id="reviewListImgs" parameterType="pagingDto" resultType="saleDto">
+		SELECT
+			SEQ_REVIEW
+			, FILE_SAVE
+		FROM
+			TB_REVIEW_IMG
+		WHERE
+			SEQ_REVIEW IN (
+				SELECT SEQ_REVIEW 
+				FROM TB_REVIEW 
+				WHERE SEQ_SLE	= #{seq_sle}
+			)
+	</select>
+
+	<select id="reviewCount" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(ROWNUM)
+		FROM
+			TB_SLE sle
+		LEFT JOIN
+			TB_REVIEW review
+		ON
+			sle.SEQ_SLE = review.SEQ_SLE
+		WHERE
+		<include refid="reviewwhere" />
+	</select>
+
+	<select id="reviewList" parameterType="pagingDto" resultType="saleDto">
+		SELECT
+			*
+		FROM
+		(
+		SELECT
+			/*+ first_rows(10) */ ROW_NUMBER() OVER (ORDER BY review.DT_REG DESC) rnum
+			, review.SEQ_REVIEW
+			, sle.SEQ_SLE
+			, review.SEQ_MBR
+			, review.FLG_DELETE
+			, review.RATE_REVIEW
+			, TO_CHAR(review.DT_REG, 'YYYY-MM-DD') dt_reg
+			, mbr.MBR_NM
+			, rate.RATE_STAR AS mbr_rate_star
+			, dtl.SLE_NM
+			, dtl.COUNT
+		FROM
+			TB_SLE sle
+		LEFT JOIN
+			TB_REVIEW review
+		ON
+			sle.SEQ_SLE = review.SEQ_SLE
+		LEFT JOIN
+			TB_MBR_MST mbr
+		ON
+			review.SEQ_MBR = mbr.SEQ_MBR
+		LEFT JOIN
+			TB_RATE rate
+		ON
+			rate.SEQ_REVIEW = review.SEQ_REVIEW
+		LEFT JOIN
+			TB_BUY_DTL dtl
+		ON
+			dtl.SEQ_REVIEW = review.SEQ_REVIEW
+			AND dtl.SEQ_SLE = review.SEQ_SLE
+			AND dtl.SEQ_MBR = review.SEQ_MBR
+		WHERE
+		<include refid="reviewwhere" />
+		)
+		<![CDATA[
+		WHERE rnum >= (${currentPage} - 1) * ${linePerPage} + 1 AND rnum <= ${currentPage} * ${linePerPage}
+		]]>
+		ORDER BY rnum
+	</select>
+	
+	<sql id="reviewwhere">
+		sle.SEQ_SLE				= #{seq_sle}
+		AND review.FLG_DELETE	= 'N'
+	</sql>
+
+	<select id="detailCount" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(ROWNUM)
+		FROM
+			TB_SLE sle
+		WHERE
+		<include refid="detailwhere" />
+	</select>
+
+	<select id="detailList" parameterType="pagingDto" resultType="saleDto">
+		SELECT
+			*
+		FROM
+		(
+		SELECT
+			/*+ first_rows(10) */ ROW_NUMBER() OVER (ORDER BY NVL(best.flg_best, 'N') DESC) rnum
+			, sle.SEQ_SLE
+			, sle.SLE_NM
+			, sle.IMG
+			, sle.PRICE_SALE
+			, sle.CD_CTG_B
+			, sle.CD_CTG_M
+			, sle.PRD_TYPE
+			, sle.CORP_NM
+			, sle.DISCOUNT
+			, sle.COUNT_STOCK
+			, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) AS discount_sale
+			, TO_CHAR(sle.DT_REG, 'YYYY-MM-DD') dt_reg
+			, NVL(rate_summary.total_count, 0) total_count
+			, ROUND(CASE 
+				WHEN NVL(rate_summary.total_count, 0) > 0 THEN rate_summary.total_star_rate / rate_summary.total_count
+				ELSE 0
+			END, 0) star
+			, NVL(best.flg_best, 'N') AS FLG_BEST
+			FROM
+				TB_SLE sle
+			LEFT JOIN (
+				SELECT
+					rate.SEQ_SLE,
+					SUM(rate.RATE_STAR) total_star_rate,
+					NVL(SUM(rate.COUNT), 0) total_count
+				FROM
+					TB_RATE rate
+				INNER JOIN
+					TB_REVIEW review
+				ON rate.SEQ_REVIEW = review.SEQ_REVIEW
+				WHERE
+					review.FLG_DELETE = 'N'
+				GROUP BY
+					rate.SEQ_SLE
+			) rate_summary
+			ON
+				sle.SEQ_SLE = rate_summary.SEQ_SLE
+		LEFT JOIN (
+			SELECT
+				SEQ_SLE,
+				MAX(NVL(FLG_BEST, 'N')) AS flg_best
+			FROM
+				TB_BEST
+			GROUP BY SEQ_SLE
+		) best
+		ON
+			sle.SEQ_SLE = best.SEQ_SLE
+		WHERE
+		<include refid="detailwhere" />
+		)
+		<![CDATA[
+		WHERE rnum <= ${linePerPage}
+		]]>
+		ORDER BY DBMS_RANDOM.VALUE
+	</select>
+
+	<sql id="detailwhere">
+		sle.CD_STATE_SALE		= 2
+		AND sle.FLG_DELETE		= 'N'
+		AND sle.CD_CTG_B		= #{cd_ctg_b}
+		AND sle.CD_CTG_M		= #{cd_ctg_m}
+		<![CDATA[
+		AND sle.COUNT_STOCK > 0
+		]]>
+		<![CDATA[
+		AND SYSDATE >= sle.DT_SALE_START AND SYSDATE <= sle.DT_SALE_END
+		]]>
+	</sql>
+
+	<select id="select" parameterType="saleDto" resultType="saleDto">
+		WITH sle_base AS (
+			SELECT
+				sle.SEQ_SLE
+				, sle.SLE_NM
+				, sle.DESCES
+				, NVL(sle.POINT_STACK, 0) AS point_stack
+				, sle.IMG
+				, sle.PRICE_SALE
+				, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) AS discount_sale
+				, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)) * (sle.POINT_STACK / 100), -1) AS point_value
+				, DECODE(sle.PRD_TYPE, 1, '액상', 2, '정', 3, '캡슐', 4, '베지캡슐', 5, '젤리', 6, '분말', 7, '츄어블', '미정') AS prd_type
+				, sle.CORP_NM
+				, sle.cd_ctg_m
+				, sle.cd_ctg_b
+				, sle.DISCOUNT
+				, TO_CHAR(sle.DT_REG, 'YYYY-MM-DD') AS dt_reg
+				, sle.COUNT_STOCK
+			FROM
+				TB_SLE sle
+			WHERE
+				sle.SEQ_SLE = #{seq_sle}
+				AND sle.CD_STATE_SALE = 2
+		),
+		rate_summary AS (
+			SELECT
+				rate.SEQ_SLE
+				, NVL(SUM(rate.RATE_STAR), 0) AS total_star_rate
+				, NVL(SUM(rate.COUNT), 0) AS total_count
+			FROM
+				TB_RATE rate
+			INNER JOIN
+				TB_REVIEW review
+			ON
+				rate.SEQ_REVIEW = review.SEQ_REVIEW
+			WHERE
+				review.FLG_DELETE = 'N'
+			GROUP BY
+				rate.SEQ_SLE
+		),
+		buy_dtl AS (
+			SELECT
+				SEQ_SLE
+				, SEQ_MBR
+				, MAX(FLG_REVIEW) flg_review
+			FROM
+				TB_BUY_DTL
+			WHERE
+				SEQ_SLE = #{seq_sle}
+				AND SEQ_MBR = #{seq_mbr}
+			GROUP BY
+				SEQ_SLE
+				, SEQ_MBR
+		),
+		best AS (
+			SELECT
+				SEQ_SLE
+				, MAX(FLG_BEST) flg_best
+			FROM
+				TB_BEST
+			GROUP BY
+				SEQ_SLE
+		),
+		likeTbl AS (
+			SELECT
+				SEQ_SLE
+				, SEQ_MBR
+				, MAX(FLG_LIKE) flg_like
+			FROM
+				TB_LIKE
+			WHERE
+				SEQ_MBR = #{seq_mbr}
+			GROUP BY
+				SEQ_SLE
+				, SEQ_MBR
+		)
+		SELECT
+			base.SEQ_SLE
+			, base.SLE_NM
+			, base.DESCES
+			, base.point_stack
+			, base.IMG
+			, base.PRICE_SALE
+			, ROUND(base.discount_sale, -1) AS discount_sale
+			, ROUND(base.POINT_VALUE, -1) AS point_value
+			, base.PRD_TYPE
+			, base.CORP_NM
+			, base.cd_ctg_m
+			, base.cd_ctg_b
+			, base.DISCOUNT
+			, base.DT_REG
+			, base.COUNT_STOCK
+			, rate_summary.TOTAL_COUNT
+			, ROUND(CASE 
+				WHEN rate_summary.total_count > 0 THEN rate_summary.total_star_rate / rate_summary.total_count
+				ELSE 0
+			END, 0) star
+			, best.FLG_BEST
+			<if test="seq_mbr != null and seq_mbr != ''">
+			, likeTbl.FLG_LIKE
+			, buy_dtl.FLG_REVIEW
+			</if>
+		FROM
+			sle_base base
+		LEFT JOIN
+			rate_summary
+		ON
+			base.SEQ_SLE = rate_summary.SEQ_SLE
+		LEFT JOIN
+			best
+		ON
+			base.SEQ_SLE = best.SEQ_SLE
+		<if test="seq_mbr != null and seq_mbr != ''">
+		LEFT JOIN
+			likeTbl
+		ON
+			base.SEQ_SLE = likeTbl.SEQ_SLE
+			AND likeTbl.SEQ_MBR = #{seq_mbr}
+		LEFT JOIN
+			buy_dtl
+		ON
+			base.SEQ_SLE = buy_dtl.SEQ_SLE
+			AND buy_dtl.SEQ_MBR = #{seq_mbr}
+		</if>
+	</select>
+
+	<select id="totalCount" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(ROWNUM)
+		FROM
+			TB_SLE sle
+		<if test="filter == 'BestP'">
+			LEFT JOIN
+				TB_BEST best
+			ON
+				sle.SEQ_SLE = best.SEQ_SLE
+		</if>
+			WHERE
+		<include refid="totalwhere" />
+	</select>
+
+	<select id="totalList" parameterType="pagingDto" resultType="saleDto">
+		SELECT
+			*
+		FROM
+		(
+		SELECT
+		/*+ first_rows(10) */ 
+		ROW_NUMBER() OVER (
+			ORDER BY
+			<if test="filter == 'LowP'">
+				ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) ASC
+			</if>
+			<if test="filter == 'HighP'">
+				ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) DESC
+			</if>
+			<if test="filter == 'DtReg'">
+				sle.DT_REG DESC
+			</if>
+			<if test="filter != 'LowP' and filter != 'HighP' and filter != 'DtReg'">
+				sle.DT_REG DESC
+			</if>
+		) rnum
+			, sle.SEQ_SLE
+			, sle.SLE_NM
+			, sle.IMG
+			, sle.PRICE_SALE
+			, sle.CD_CTG_B
+			, sle.CD_CTG_M
+			, sle.PRD_TYPE
+			, sle.CORP_NM
+			, sle.DISCOUNT
+			, sle.COUNT_STOCK
+			, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) AS discount_sale
+			, TO_CHAR(sle.DT_REG, 'YYYY-MM-DD') dt_reg
+			, NVL(rate_summary.total_count, 0) total_count
+			, ROUND(CASE 
+				WHEN NVL(rate_summary.total_count, 0) > 0 THEN rate_summary.total_star_rate / rate_summary.total_count
+				ELSE 0
+			END, 0) star
+			, NVL(best.flg_best, 'N') AS FLG_BEST
+		FROM
+			TB_SLE sle
+		LEFT JOIN (
+			SELECT
+				rate.SEQ_SLE
+				, SUM(rate.RATE_STAR) total_star_rate
+				, NVL(SUM(rate.COUNT), 0) total_count
+			FROM
+				TB_RATE rate
+			INNER JOIN
+				TB_REVIEW review
+			ON
+				rate.SEQ_REVIEW = review.SEQ_REVIEW
+			WHERE
+				review.FLG_DELETE = 'N'
+			GROUP BY rate.SEQ_SLE
+		) rate_summary
+		ON
+			sle.SEQ_SLE = rate_summary.SEQ_SLE
+		LEFT JOIN (
+			SELECT
+				SEQ_SLE,
+				MAX(NVL(FLG_BEST, 'N')) AS flg_best
+			FROM
+				TB_BEST
+			GROUP BY SEQ_SLE
+		) best
+		ON
+			sle.SEQ_SLE = best.SEQ_SLE
+		WHERE
+		<include refid="totalwhere" />
+		)
+		<![CDATA[
+		WHERE rnum >= (${currentPage} - 1) * ${linePerPage} + 1 AND rnum <= ${currentPage} * ${linePerPage}
+		]]>
+		ORDER BY rnum
+	</select>
+
+	<sql id="totalwhere">
+		sle.CD_STATE_SALE = 2
+		AND sle.FLG_DELETE = 'N'
+		<![CDATA[
+		AND sle.COUNT_STOCK > 0
+		]]>
+		<![CDATA[
+		AND SYSDATE >= sle.DT_SALE_START AND SYSDATE <= sle.DT_SALE_END
+		]]>
+		<if test="corp_nm != null and corp_nm != ''">
+			AND sle.CORP_NM = #{corp_nm}
+		</if>
+		<if test="prd_type != null and prd_type != ''">
+			AND sle.PRD_TYPE = #{prd_type}
+		</if>
+		<if test="filter == 'BestP'">
+			AND best.FLG_BEST IS NOT NULL AND best.FLG_BEST = 'Y'
+		</if>
+		<if test="searchWord != null and searchWord != ''">
+			AND UPPER(sle.SLE_NM) LIKE UPPER('%' || #{searchWord} || '%')
+		</if>
+		<choose>
+			<when test="cd_ctg_b == 9 and cd_ctg_m == 10">
+				AND sle.cd_ctg_b IN (1, 2, 3)
+				AND sle.cd_ctg_m IN (1, 2, 3, 4, 5, 6, 7, 8, 9)
+			</when>
+			<when test="(cd_ctg_b == 1 or cd_ctg_b == 2) and (cd_ctg_m == 1 or cd_ctg_m == 2 or cd_ctg_m == 3 or cd_ctg_m == 4 or cd_ctg_m == 5 or cd_ctg_m == 6 or cd_ctg_m == 7 or cd_ctg_m == 8 or cd_ctg_m == 9)">
+				AND sle.cd_ctg_b = #{cd_ctg_b}
+				AND sle.cd_ctg_m = #{cd_ctg_m}
+			</when>
+			<when test="cd_ctg_b == 3 and (cd_ctg_m == 1 or cd_ctg_m == 2)">
+				AND sle.cd_ctg_b = #{cd_ctg_b}
+				AND sle.cd_ctg_m = #{cd_ctg_m}
+			</when>
+			<otherwise>
+				AND sle.cd_ctg_b = #{cd_ctg_b}
+				AND sle.cd_ctg_m IN (1, 2, 3, 4, 5, 6, 7, 8, 9)
+			</otherwise>
+		</choose>
+	</sql>
+
+	<select id="ingredientCount" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(ROWNUM)
+		FROM
+			TB_SLE sle
+		<if test="filter == 'BestP'">
+			LEFT JOIN
+				TB_BEST best
+			ON
+				sle.SEQ_SLE = best.SEQ_SLE
+		</if>
+			WHERE
+		<include refid="ingredientwhere" />
+	</select>
+
+	<select id="ingredientList" parameterType="pagingDto" resultType="saleDto">
+		SELECT
+			*
+		FROM
+		(
+		SELECT
+		/*+ first_rows(10) */ 
+		ROW_NUMBER() OVER (
+			ORDER BY
+			<if test="filter == 'LowP'">
+				ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) ASC
+			</if>
+			<if test="filter == 'HighP'">
+				ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) DESC
+			</if>
+			<if test="filter == 'DtReg'">
+				sle.DT_REG DESC
+			</if>
+			<if test="filter != 'LowP' and filter != 'HighP' and filter != 'DtReg'">
+				sle.DT_REG DESC
+			</if>
+		) rnum
+			, sle.SEQ_SLE
+			, sle.SLE_NM
+			, sle.IMG
+			, sle.PRICE_SALE
+			, sle.CD_CTG_B
+			, sle.CD_CTG_M
+			, sle.PRD_TYPE
+			, sle.CORP_NM
+			, sle.DISCOUNT
+			, sle.COUNT_STOCK
+			, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) AS discount_sale
+			, TO_CHAR(sle.DT_REG, 'YYYY-MM-DD') dt_reg
+			, NVL(rate_summary.total_count, 0) total_count
+			, ROUND(CASE 
+				WHEN NVL(rate_summary.total_count, 0) > 0 THEN rate_summary.total_star_rate / rate_summary.total_count
+				ELSE 0
+			END, 0) star
+			, NVL(best.flg_best, 'N') AS FLG_BEST
+		FROM
+			TB_SLE sle
+		LEFT JOIN (
+			SELECT
+				rate.SEQ_SLE
+				, SUM(rate.RATE_STAR) total_star_rate
+				, NVL(SUM(rate.COUNT), 0) total_count
+			FROM
+				TB_RATE rate
+			INNER JOIN
+				TB_REVIEW review
+			ON
+				rate.SEQ_REVIEW = review.SEQ_REVIEW
+			WHERE
+				review.FLG_DELETE = 'N'
+			GROUP BY rate.SEQ_SLE
+		) rate_summary
+		ON
+			sle.SEQ_SLE = rate_summary.SEQ_SLE
+		LEFT JOIN (
+			SELECT
+				SEQ_SLE,
+				MAX(NVL(FLG_BEST, 'N')) AS flg_best
+			FROM
+				TB_BEST
+			GROUP BY SEQ_SLE
+		) best
+		ON
+			sle.SEQ_SLE = best.SEQ_SLE
+		WHERE
+		<include refid="ingredientwhere" />
+		)
+		<![CDATA[
+		WHERE rnum >= (${currentPage} - 1) * ${linePerPage} + 1 AND rnum <= ${currentPage} * ${linePerPage}
+		]]>
+		ORDER BY rnum
+	</select>
+
+	<sql id="ingredientwhere">
+		sle.CD_STATE_SALE = 2
+		AND sle.FLG_DELETE = 'N'
+		AND sle.CD_CTG_B = '2'
+		<![CDATA[
+		AND sle.COUNT_STOCK > 0
+		]]>
+		<![CDATA[
+		AND SYSDATE >= sle.DT_SALE_START AND SYSDATE <= sle.DT_SALE_END
+		]]>
+		<choose>
+			<when test="cd_ctg_m != null and cd_ctg_m != ''">
+				AND sle.CD_CTG_M = #{cd_ctg_m}
+			</when>
+			<otherwise>
+				AND sle.CD_CTG_M IN (1, 2, 3, 4, 5, 6, 7, 8, 9)
+			</otherwise>
+		</choose>
+		<if test="corp_nm != null and corp_nm != ''">
+			AND sle.CORP_NM = #{corp_nm}
+		</if>
+		<if test="prd_type != null and prd_type != ''">
+			AND sle.PRD_TYPE = #{prd_type}
+		</if>
+		<if test="filter == 'BestP'">
+			AND best.FLG_BEST IS NOT NULL AND best.FLG_BEST = 'Y'
+		</if>
+		<if test="searchWord != null and searchWord != ''">
+			AND UPPER(sle.SLE_NM) LIKE UPPER('%' || #{searchWord} || '%')
+		</if>
+	</sql>
+
+	<select id="functionCount" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(ROWNUM)
+		FROM
+			TB_SLE sle
+		<if test="filter == 'BestP'">
+			LEFT JOIN
+				TB_BEST best
+			ON
+				sle.SEQ_SLE = best.SEQ_SLE
+		</if>
+			WHERE
+		<include refid="functionwhere" />
+	</select>
+
+	<select id="functionList" parameterType="pagingDto" resultType="saleDto">
+		SELECT
+			*
+		FROM
+		(
+		SELECT
+		/*+ first_rows(10) */ 
+		ROW_NUMBER() OVER (
+			ORDER BY
+			<if test="filter == 'LowP'">
+				ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) ASC
+			</if>
+			<if test="filter == 'HighP'">
+				ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) DESC
+			</if>
+			<if test="filter == 'DtReg'">
+				sle.DT_REG DESC
+			</if>
+			<if test="filter != 'LowP' and filter != 'HighP' and filter != 'DtReg'">
+				sle.DT_REG DESC
+			</if>
+		) rnum
+			, sle.SEQ_SLE
+			, sle.SLE_NM
+			, sle.IMG
+			, sle.PRICE_SALE
+			, sle.CD_CTG_B
+			, sle.CD_CTG_M
+			, sle.PRD_TYPE
+			, sle.CORP_NM
+			, sle.DISCOUNT
+			, sle.COUNT_STOCK
+			, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) AS discount_sale
+			, TO_CHAR(sle.DT_REG, 'YYYY-MM-DD') dt_reg
+			, NVL(rate_summary.total_count, 0) total_count
+			, ROUND(CASE 
+				WHEN NVL(rate_summary.total_count, 0) > 0 THEN rate_summary.total_star_rate / rate_summary.total_count
+				ELSE 0
+			END, 0) star
+			, NVL(best.flg_best, 'N') AS FLG_BEST
+		FROM
+			TB_SLE sle
+		LEFT JOIN (
+			SELECT
+				rate.SEQ_SLE
+				, SUM(rate.RATE_STAR) total_star_rate
+				, NVL(SUM(rate.COUNT), 0) total_count
+			FROM
+				TB_RATE rate
+			INNER JOIN
+				TB_REVIEW review
+			ON
+				rate.SEQ_REVIEW = review.SEQ_REVIEW
+			WHERE
+				review.FLG_DELETE = 'N'
+			GROUP BY rate.SEQ_SLE
+		) rate_summary
+		ON
+			sle.SEQ_SLE = rate_summary.SEQ_SLE
+		LEFT JOIN (
+			SELECT
+				SEQ_SLE,
+				MAX(NVL(FLG_BEST, 'N')) AS flg_best
+			FROM
+				TB_BEST
+			GROUP BY SEQ_SLE
+		) best
+		ON
+			sle.SEQ_SLE = best.SEQ_SLE
+		WHERE
+		<include refid="functionwhere" />
+		)
+		<![CDATA[
+		WHERE rnum >= (${currentPage} - 1) * ${linePerPage} + 1 AND rnum <= ${currentPage} * ${linePerPage}
+		]]>
+		ORDER BY rnum
+	</select>
+
+	<sql id="functionwhere">
+		sle.CD_STATE_SALE = 2
+		AND sle.FLG_DELETE = 'N'
+		AND sle.CD_CTG_B = '1'
+		<![CDATA[
+		AND sle.COUNT_STOCK > 0
+		]]>
+		<![CDATA[
+		AND SYSDATE >= sle.DT_SALE_START AND SYSDATE <= sle.DT_SALE_END
+		]]>
+		<choose>
+			<when test="cd_ctg_m != null and cd_ctg_m != ''">
+				AND sle.CD_CTG_M = #{cd_ctg_m}
+			</when>
+			<otherwise>
+				AND sle.CD_CTG_M IN (1, 2, 3, 4, 5, 6, 7, 8, 9)
+			</otherwise>
+		</choose>
+		<if test="corp_nm != null and corp_nm != ''">
+			AND sle.CORP_NM = #{corp_nm}
+		</if>
+		<if test="prd_type != null and prd_type != ''">
+			AND sle.PRD_TYPE = #{prd_type}
+		</if>
+		<if test="filter == 'BestP'">
+			AND best.FLG_BEST IS NOT NULL AND best.FLG_BEST = 'Y'
+		</if>
+		<if test="searchWord != null and searchWord != ''">
+			AND UPPER(sle.SLE_NM) LIKE UPPER('%' || #{searchWord} || '%')
+		</if>
+	</sql>
+
+	<select id="genderCount" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(ROWNUM)
+		FROM
+			TB_SLE sle
+		<if test="filter == 'BestP'">
+			LEFT JOIN
+				TB_BEST best
+			ON
+				sle.SEQ_SLE = best.SEQ_SLE
+		</if>
+			WHERE
+		<include refid="genderwhere" />
+	</select>
+
+	<select id="genderList" parameterType="pagingDto" resultType="saleDto">
+		SELECT
+			*
+		FROM
+		(
+		SELECT
+		/*+ first_rows(10) */ 
+		ROW_NUMBER() OVER (
+			ORDER BY
+			<if test="filter == 'LowP'">
+				ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) ASC
+			</if>
+			<if test="filter == 'HighP'">
+				ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) DESC
+			</if>
+			<if test="filter == 'DtReg'">
+				sle.DT_REG DESC
+			</if>
+			<if test="filter != 'LowP' and filter != 'HighP' and filter != 'DtReg'">
+				sle.DT_REG DESC
+			</if>
+		) rnum
+			, sle.SEQ_SLE
+			, sle.SLE_NM
+			, sle.IMG
+			, sle.PRICE_SALE
+			, sle.CD_CTG_B
+			, sle.CD_CTG_M
+			, sle.PRD_TYPE
+			, sle.CORP_NM
+			, sle.DISCOUNT
+			, sle.COUNT_STOCK
+			, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) AS discount_sale
+			, TO_CHAR(sle.DT_REG, 'YYYY-MM-DD') dt_reg
+			, NVL(rate_summary.total_count, 0) total_count
+			, ROUND(CASE 
+				WHEN NVL(rate_summary.total_count, 0) > 0 THEN rate_summary.total_star_rate / rate_summary.total_count
+				ELSE 0
+			END, 0) star
+			, NVL(best.flg_best, 'N') AS FLG_BEST
+		FROM
+			TB_SLE sle
+		LEFT JOIN (
+			SELECT
+				rate.SEQ_SLE
+				, SUM(rate.RATE_STAR) total_star_rate
+				, NVL(SUM(rate.COUNT), 0) total_count
+			FROM
+				TB_RATE rate
+			INNER JOIN
+				TB_REVIEW review
+			ON
+				rate.SEQ_REVIEW = review.SEQ_REVIEW
+			WHERE
+				review.FLG_DELETE = 'N'
+			GROUP BY rate.SEQ_SLE
+		) rate_summary
+		ON
+			sle.SEQ_SLE = rate_summary.SEQ_SLE
+		LEFT JOIN (
+			SELECT
+				SEQ_SLE,
+				MAX(NVL(FLG_BEST, 'N')) AS flg_best
+			FROM
+				TB_BEST
+			GROUP BY SEQ_SLE
+		) best
+		ON
+			sle.SEQ_SLE = best.SEQ_SLE
+		WHERE
+		<include refid="genderwhere" />
+		)
+		<![CDATA[
+		WHERE rnum >= (${currentPage} - 1) * ${linePerPage} + 1 AND rnum <= ${currentPage} * ${linePerPage}
+		]]>
+		ORDER BY rnum
+	</select>
+
+	<sql id="genderwhere">
+		sle.CD_STATE_SALE = 2
+		AND sle.FLG_DELETE = 'N'
+		AND sle.CD_CTG_B = '3'
+		<![CDATA[
+		AND sle.COUNT_STOCK > 0
+		]]>
+		<![CDATA[
+		AND SYSDATE >= sle.DT_SALE_START AND SYSDATE <= sle.DT_SALE_END
+		]]>
+		<choose>
+			<when test="cd_ctg_m != null and cd_ctg_m != ''">
+				AND sle.CD_CTG_M = #{cd_ctg_m}
+			</when>
+			<otherwise>
+				AND sle.CD_CTG_M IN (1, 2)
+			</otherwise>
+		</choose>
+		<if test="corp_nm != null and corp_nm != ''">
+			AND sle.CORP_NM = #{corp_nm}
+		</if>
+		<if test="prd_type != null and prd_type != ''">
+			AND sle.PRD_TYPE = #{prd_type}
+		</if>
+		<if test="filter == 'BestP'">
+			AND best.FLG_BEST IS NOT NULL AND best.FLG_BEST = 'Y'
+		</if>
+		<if test="searchWord != null and searchWord != ''">
+			AND UPPER(sle.SLE_NM) LIKE UPPER('%' || #{searchWord} || '%')
+		</if>
+	</sql>
+	
+	<select id="listingLike" parameterType="pagingDto" resultType="pagingDto">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				/*+ first_rows(10) */ ROW_NUMBER() OVER (ORDER BY likeTbl.DT_REG DESC) rnum
+				, sle.SEQ_SLE										seq_sle
+				, sle.SLE_NM									sle_nm
+				, NVL(sle.POINT_STACK, 0)						point_stack
+				, sle.IMG										img
+				, sle.PRICE_SALE								price_sale
+				, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) AS discount_sale
+				, sle.CORP_NM									corp_nm
+				, sle.cd_ctg_m									cd_ctg_m
+				, sle.cd_ctg_b									cd_ctg_b
+				, TO_CHAR(sle.DT_REG, 'YYYY-MM-DD')				dt_reg
+				, sle.COUNT_STOCK								count_stock
+				, sle.DISCOUNT									discount
+				, likeTbl.FLG_LIKE								flg_like
+			FROM
+				TB_SLE sle
+			LEFT OUTER JOIN
+				TB_LIKE likeTbl
+			ON
+				sle.SEQ_SLE = likeTbl.SEQ_SLE
+				AND likeTbl.SEQ_MBR = #{seq_mbr}
+			WHERE	
+				sle.CD_STATE_SALE = 2
+				AND sle.FLG_DELETE	= 'N'
+				AND likeTbl.FLG_LIKE = 'Y'
+			)
+			<![CDATA[
+			WHERE
+				rnum >= (${currentPage} - 1) * ${linePerPage} + 1 AND rnum <= ${currentPage} * ${linePerPage}
+			]]> 
+			ORDER BY
+				DT_REG DESC
+	</select>
+	
+	<select id="myLikeCount" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(*)
+		FROM
+			TB_SLE sle
+		LEFT OUTER JOIN
+			TB_LIKE likeTbl
+		ON
+			sle.SEQ_SLE = likeTbl.SEQ_SLE
+			AND likeTbl.SEQ_MBR = #{seq_mbr}
+		WHERE
+		<include refid="myLikewhere" />
+	</select>
+	
+	<sql id="myLikewhere">
+		sle.CD_STATE_SALE = 2
+		AND sle.FLG_DELETE	= 'N'
+		AND likeTbl.FLG_LIKE = 'Y'
+	</sql>
+	
+	<select id="listingMyLike" parameterType="pagingDto" resultType="pagingDto">
+		SELECT
+			sle.SEQ_SLE										seq_sle
+			, sle.SLE_NM									sle_nm
+			, NVL(sle.POINT_STACK, 0)						point_stack
+			, sle.IMG										img
+			, sle.PRICE_SALE								price_sale
+			, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) AS discount_sale
+			, sle.CORP_NM									corp_nm
+			, sle.cd_ctg_m									cd_ctg_m
+			, sle.cd_ctg_b									cd_ctg_b
+			, TO_CHAR(sle.DT_REG, 'YYYY-MM-DD')				dt_reg
+			, sle.COUNT_STOCK								count_stock
+			, likeTbl.FLG_LIKE								flg_like
+		FROM
+			TB_SLE sle
+		LEFT OUTER JOIN
+			TB_LIKE likeTbl
+		ON
+			sle.SEQ_SLE = likeTbl.SEQ_SLE
+			AND likeTbl.SEQ_MBR = #{seq_mbr}
+		WHERE
+			sle.CD_STATE_SALE = 2
+			AND sle.FLG_DELETE	= 'N'
+			AND likeTbl.FLG_LIKE = 'Y'
+		<![CDATA[
+			AND rownum <=3
+		]]>
+		ORDER BY
+			likeTbl.DT_REG DESC
+			
+	</select>
+
+</mapper>

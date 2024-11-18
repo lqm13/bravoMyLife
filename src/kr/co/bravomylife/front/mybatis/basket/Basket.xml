@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.bravomylife.front.mybatis.basket.Basket">
+
+	<select id="checkBasket" parameterType="buyDetailDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(SEQ_SLE)
+		FROM
+			TB_BSK
+		WHERE
+			SEQ_MBR			= #{seq_mbr}
+			AND SEQ_SLE		= #{seq_sle}
+			AND FLG_DELETE	= 'N'
+	</select>
+
+	<update id="updateBasket" parameterType="buyDetailDto">
+		UPDATE
+			TB_BSK
+		SET
+			FLG_DELETE		= 'Y'
+			, DT_UPT		= SYSDATE
+		WHERE
+			SEQ_MBR			= #{seq_mbr}
+			AND SEQ_SLE		= #{seq_sle}
+			AND FLG_DELETE	= 'N'
+	</update>
+
+	<update id="ajaxRemove" parameterType="map">
+		UPDATE
+			TB_BSK
+		SET
+			FLG_DELETE		= 'Y'
+			, DT_UPT		= SYSDATE
+		WHERE
+			SEQ_MBR			= #{seq_mbr}
+			AND SEQ_SLE		= #{seq_sle}
+			AND FLG_DELETE	= 'N'
+	</update>
+
+	<update id="ajaxUpdate" parameterType="pagingDto">
+		UPDATE
+			TB_BSK
+		SET
+			COUNT			= #{count}
+			, DT_UPT		= SYSDATE
+		WHERE
+			SEQ_MBR			= #{seq_mbr}
+			AND SEQ_SLE		= #{seq_sle}
+			AND FLG_DELETE	= 'N'
+	</update>
+
+	<update id="update" parameterType="basketDto">
+		UPDATE
+			TB_BSK
+		SET
+			PRICE			= #{price}
+			, COUNT			= COUNT + #{count}
+			, POINT_STACK	= #{point_stack}
+			, PRICE_SALE	= #{price_sale}
+			, DISCOUNT		= #{discount}
+			, DT_UPT		= SYSDATE
+		WHERE
+			SEQ_MBR			= #{seq_mbr}
+			AND SEQ_SLE		= #{seq_sle}
+			AND FLG_DELETE	= 'N'
+	</update>
+
+	<insert id="insert" parameterType="basketDto">
+		INSERT INTO TB_BSK
+			(SEQ_BSK, SEQ_MBR, SEQ_SLE, SLE_NM, PRICE, COUNT, IMG, POINT_STACK, CD_CTG_M, CD_CTG_B, PRICE_SALE, DISCOUNT, FLG_DELETE, DT_REG, DT_UPT)
+		VALUES
+			(SQ_SEQ_BSK.NEXTVAL, #{seq_mbr}, #{seq_sle}, #{sle_nm}, #{price}, #{count}, #{img}, #{point_stack}, #{cd_ctg_m}, #{cd_ctg_b}, #{price_sale}, #{discount}, 'N', SYSDATE, NULL)
+	</insert>
+
+	<select id="insertCheck" parameterType="basketDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(SEQ_SLE)
+		FROM
+			TB_BSK
+		WHERE
+			SEQ_MBR			= #{seq_mbr}
+			AND SEQ_SLE		= #{seq_sle}
+			AND CD_CTG_M	= #{cd_ctg_m}
+			AND CD_CTG_B	= #{cd_ctg_b}
+			AND FLG_DELETE	= 'N'
+	</select>
+
+	<select id="ajaxlisting" parameterType="basketDto" resultType="basketDto">
+		SELECT
+			*
+		FROM
+		(
+		SELECT
+			bsk.SEQ_SLE
+			, bsk.SLE_NM
+			, bsk.PRICE
+			, bsk.COUNT
+			, bsk.IMG
+			, ROUND(bsk.PRICE * (bsk.POINT_STACK / 100), -1) AS point_value
+			, bsk.CD_CTG_M
+			, bsk.CD_CTG_B
+			, (bsk.PRICE * bsk.COUNT) TOTAL_PRICE
+			, ROUND(bsk.PRICE * (bsk.POINT_STACK / 100), -1) * bsk.COUNT AS total_point
+			, TO_CHAR(bsk.DT_REG, 'YYYY-MM-DD') dt_reg
+			, sbsk.SEQ_SLE_COUNT
+			, sbsk.TOTAL_PRICE_SUM
+			, sbsk.TOTAL_POINT_SUM
+		FROM
+			TB_BSK bsk
+		CROSS JOIN
+		(
+		SELECT
+			COUNT(SEQ_SLE) SEQ_SLE_COUNT
+			, SUM(PRICE * COUNT) AS total_price_sum
+			, SUM((PRICE * (POINT_STACK / 100)) * COUNT) AS total_point_sum
+		FROM
+			TB_BSK
+		) sbsk
+		WHERE
+			SEQ_MBR			= #{seq_mbr}
+			AND SEQ_SLE		= #{seq_sle}
+			AND FLG_DELETE	= 'N'
+		)
+		ORDER BY
+			dt_reg DESC
+	</select>
+	
+	<select id="listingList" parameterType="pagingDto" resultType="basketDto">
+		SELECT
+			*
+		FROM
+		(
+		SELECT
+			SEQ_SLE
+			, SLE_NM
+			, PRICE
+			, COUNT
+			, IMG
+			, POINT_STACK
+			, ROUND(PRICE * (POINT_STACK / 100), -1) AS point_value
+			, CD_CTG_M
+			, CD_CTG_B
+			, PRICE_SALE
+			, DISCOUNT
+			, (PRICE * COUNT) TOTAL_PRICE
+			, ROUND(PRICE * (POINT_STACK / 100), -1) * COUNT AS total_point
+			, TO_CHAR(DT_REG, 'YYYY-MM-DD') dt_reg
+		FROM
+			TB_BSK
+		WHERE
+		<include refid="listingwhere" />
+		)
+		ORDER BY
+			dt_reg DESC
+	</select>
+
+	<sql id="listingwhere">
+		SEQ_MBR			= #{seq_mbr}
+		AND FLG_DELETE	= 'N'
+	</sql>
+
+</mapper>

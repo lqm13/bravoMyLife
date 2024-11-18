@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.bravomylife.backoffice.mybatis.manager.Manager">
+
+	<update id="updateMyPasswd" parameterType="managerDto">
+		UPDATE
+			TB_MNG
+		SET
+			PASSWD		= #{passwd}
+			, UPDATER	= #{updater}
+			, DT_UPT	= SYSDATE
+		WHERE
+			SEQ_MNG		= #{seq_mng}
+	</update>
+	
+	<select id="selectMyPasswd" parameterType="managerDto" resultType="managerDto">
+		SELECT
+			PASSWD
+		FROM
+			TB_MNG
+		WHERE
+			SEQ_MNG		= #{seq_mng}
+	</select>
+
+	<update id="update" parameterType="managerDto">
+		UPDATE
+			TB_MNG
+		SET
+			DT_UPT		= SYSDATE
+			<if test="phone != null and phone != ''">
+			, PHONE	= #{phone}
+			</if>
+			, UPDATER	= #{updater}
+			<if test="post != null and post != ''">
+			, POST		= #{post}
+			</if>
+			<if test="addr1 != null and addr1 != ''">
+			, ADDR1		= #{addr1}
+			</if>
+			<if test="addr2 != null and addr2 != ''">
+			, ADDR2		= #{addr2}
+			</if>
+			
+		WHERE
+			SEQ_MNG	= #{seq_mng}
+	</update>
+
+	<select id="selectDuplicate" parameterType="managerDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(EMAIL)
+		FROM
+			TB_MNG
+		WHERE
+			EMAIL = #{email}
+	</select>
+
+	<select id="select" parameterType="managerDto" resultType="managerDto">
+		SELECT
+			SEQ_MNG
+			, EMAIL
+			, MNG_NM
+			, PHONE
+			, POST
+			, ADDR1
+			, ADDR2
+		FROM
+			TB_MNG
+		WHERE
+			SEQ_MNG = #{seq_mng}
+	</select>
+	
+	<select id="sequence" resultType="java.lang.Integer" >
+		SELECT SQ_SEQ_MNG.NEXTVAL FROM DUAL
+	</select>
+	
+	<insert id="insert" parameterType="managerDto">
+		INSERT INTO TB_MNG
+			(SEQ_MNG, EMAIL, PASSWD, MNG_NM, CD_STATE, PHONE, POST, ADDR1, ADDR2, DT_REG, REGISTER)
+		VALUES
+			(#{seq_mng}, #{email}, #{passwd}, #{mng_nm}, 0, #{phone}, #{post}, #{addr1}, #{addr2}, SYSDATE, #{register})
+	</insert>
+	
+
+</mapper> 

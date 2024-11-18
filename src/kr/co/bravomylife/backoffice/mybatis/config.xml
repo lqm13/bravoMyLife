@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+	<settings>
+		<setting name="jdbcTypeForNull" value="NULL" />
+	</settings>
+	<typeAliases>
+		<typeAlias type="kr.co.bravomylife.backoffice.center.dto.BoardDto"					alias="boardDto" />
+		<typeAlias type="kr.co.bravomylife.backoffice.common.dto.PagingDto"					alias="pagingDto" />
+		<typeAlias type="kr.co.bravomylife.backoffice.product.dto.ProductDto"				alias="productDto" />
+		<typeAlias type="kr.co.bravomylife.backoffice.manager.dto.ManagerDto"				alias="managerDto" />
+		<typeAlias type="kr.co.bravomylife.backoffice.login.dto.LoginDto"					alias="loginDto" />
+		<typeAlias type="kr.co.bravomylife.backoffice.users.dto.ManagersDto"				alias="managersDto" />
+		<typeAlias type="kr.co.bravomylife.backoffice.users.dto.MemberDto"					alias="memberDto" />
+		<typeAlias type="kr.co.bravomylife.backoffice.buy.dto.BuyDto"						alias="buyDto" />
+		<typeAlias type="kr.co.bravomylife.backoffice.buy.dto.BuyDetailDto"					alias="buyDetailDto" />
+		<typeAlias type="kr.co.bravomylife.backoffice.buy.dto.BuyDetailListDto"				alias="buyDetailListDto" />
+		<typeAlias type="kr.co.bravomylife.backoffice.buy.dto.BuyMasterDto"					alias="buyMasterDto" />
+		<typeAlias type="kr.co.bravomylife.backoffice.login.dto.StatisticsDto"				alias="statisticsDto" />
+		<typeAlias type="kr.co.bravomylife.backoffice.login.dto.StatisticsBestDto"			alias="statisticsBestDto" />
+		<typeAlias type="kr.co.bravomylife.backoffice.statistics.dto.MemberAgeDto"			alias="MemberAgeDto" />
+		<typeAlias type="kr.co.bravomylife.backoffice.statistics.dto.MemberIncomeDto"		alias="memberIncomeDto" />
+	</typeAliases>
+	<mappers>
+		<mapper resource="kr/co/bravomylife/backoffice/mybatis/center/Board.xml" />
+		<mapper resource="kr/co/bravomylife/backoffice/mybatis/product/Product.xml" />
+		<mapper resource="kr/co/bravomylife/backoffice/mybatis/manager/Manager.xml" />
+		<mapper resource="kr/co/bravomylife/backoffice/mybatis/login/Login.xml" />
+		<mapper resource="kr/co/bravomylife/backoffice/mybatis/users/Managers.xml" />
+		<mapper resource="kr/co/bravomylife/backoffice/mybatis/users/Member.xml" />
+		<mapper resource="kr/co/bravomylife/backoffice/mybatis/buy/Buy.xml" />
+		<mapper resource="kr/co/bravomylife/backoffice/mybatis/statistics/Statistics.xml" />
+	</mappers>
+</configuration>

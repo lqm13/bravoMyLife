@@ -1,0 +1,434 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.bravomylife.front.mybatis.member.Member">
+	
+	<update id="deliveryDelete" parameterType="memberDto">
+		UPDATE
+			TB_MBR_ADDR
+		SET
+			FLG_DELETE	= 'Y'
+			, FLG_DEFAULT = 'N'
+			, DT_UPT	= SYSDATE
+			, UPDATER	= #{seq_mbr}
+		WHERE
+			SEQ_MBR		= #{seq_mbr}
+			AND SEQ_MBR_ADDR = #{seq_mbr_addr}
+	</update>
+	
+	<select id="buyDelivertView" parameterType="memberDto" resultType="memberDto">
+		SELECT
+			addr.POST
+			, addr.SEQ_MBR_ADDR
+			, addr.ADDR1
+			, addr.ADDR2
+			, mst.CD_STATE_DELIVERY
+			, mst.DELIVERY_REQUEST
+			, mbr_mst.MBR_NM
+			, TO_CHAR(SYSDATE, 'MM"월"" "DD"일"') dt_reg
+			, mst.CD_STATE AS cd_state_mst
+		FROM
+			TB_MBR_ADDR addr
+		LEFT JOIN
+			TB_BUY_MST mst
+		ON
+			addr.SEQ_MBR_ADDR = mst.SEQ_MBR_ADDR
+			AND addr.SEQ_MBR = mst.SEQ_MBR
+		LEFT JOIN
+			TB_MBR_MST mbr_mst
+		ON
+			addr.SEQ_MBR = mbr_mst.SEQ_MBR
+		WHERE
+			addr.SEQ_MBR = #{seq_mbr}
+			AND mst.SEQ_BUY_MST = #{seq_buy_mst}
+			AND addr.SEQ_MBR_ADDR = #{seq_mbr_addr}
+	</select>
+	
+	<select id="deliveryDelCheck" parameterType="memberDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(seq_mbr_addr)
+		FROM
+			TB_MBR_ADDR
+		WHERE
+			SEQ_MBR = #{seq_mbr}
+			AND SEQ_MBR_ADDR = #{seq_mbr_addr}
+			AND FLG_DEFAULT = 'Y'
+			AND FLG_DELETE = 'N'
+	</select>
+	
+	<select id="deliveryChanges" parameterType="memberDto" resultType="memberDto">
+		SELECT
+			SEQ_MBR_ADDR
+			, POST
+			, ADDR1
+			, ADDR2
+		FROM
+			TB_MBR_ADDR
+		WHERE
+			SEQ_MBR = #{seq_mbr}
+			AND FLG_DELETE = 'N'
+	</select>
+	
+	<update id="deleteDelivery" parameterType="buyMasterDto">
+		UPDATE
+			TB_MBR_ADDR
+		SET
+			FLG_DELETE	= 'Y'
+			, FLG_DEFAULT = 'N'
+			, DT_UPT	= SYSDATE
+			, UPDATER	= #{seq_mbr}
+		WHERE
+			SEQ_MBR		= #{seq_mbr}
+			AND SEQ_MBR_ADDR = #{seq_mbr_addr}
+	</update>
+	
+	<update id="writeProcDelivery" parameterType="buyMasterDto">
+		UPDATE
+			TB_MBR_ADDR
+		SET
+			POST		= #{post}
+			, ADDR1		= #{addr1}
+			, ADDR2		= #{addr2}
+			, DT_UPT	= SYSDATE
+			, UPDATER	= #{seq_mbr}
+			, FLG_DEFAULT = #{flg_default}
+		WHERE
+			SEQ_MBR		= #{seq_mbr}
+			AND SEQ_MBR_ADDR = #{seq_mbr_addr}
+	</update>
+	
+	<select id="writeFomrDelivery" parameterType="memberDto" resultType="memberDto">
+		SELECT
+			SEQ_MBR_ADDR
+			, FLG_DEFAULT
+			, POST
+			, ADDR1
+			, ADDR2
+			, TO_CHAR(DT_REG, 'YYYY-MM-DD') dt_reg
+		FROM
+			TB_MBR_ADDR
+		WHERE
+			SEQ_MBR = #{seq_mbr}
+			AND SEQ_MBR_ADDR = #{seq_mbr_addr}
+			AND FLG_DELETE = 'N'
+	</select>
+	
+	<select id="deliveryList" parameterType="memberDto" resultType="memberDto">
+		SELECT
+			SEQ_MBR_ADDR
+			, FLG_DEFAULT
+			, POST
+			, ADDR1
+			, ADDR2
+			, TO_CHAR(DT_REG, 'YYYY-MM-DD') dt_reg
+		FROM
+			TB_MBR_ADDR
+		WHERE
+			SEQ_MBR = #{seq_mbr}
+			AND FLG_DELETE = 'N'
+		ORDER BY dt_reg DESC
+	</select>
+	
+	<insert id="modifyDeliveryProc" parameterType="memberDto">
+		INSERT INTO TB_MBR_ADDR
+			(SEQ_MBR_ADDR, SEQ_MBR, POST, ADDR1, ADDR2, FLG_DELETE, FLG_DEFAULT, DT_REG, REGISTER, DT_UPT, UPDATER)
+		VALUES
+			(SQ_SEQ_MBR_ADDR.NEXTVAL, #{seq_mbr}, #{post}, #{addr1}, #{addr2}, 'N', 'N', SYSDATE, #{seq_mbr}, NULL, NULL)
+	</insert>
+	
+	<select id="deliveryDefaultCheck" parameterType="memberDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(seq_mbr)
+		FROM
+			TB_MBR_ADDR
+		WHERE
+			SEQ_MBR = #{seq_mbr}
+			AND FLG_DELETE = 'N'
+			AND FLG_DEFAULT = 'Y'
+	</select>
+	
+	<select id="deliveryCheck" parameterType="memberDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(seq_mbr)
+		FROM
+			TB_MBR_ADDR
+		WHERE
+			SEQ_MBR = #{seq_mbr}
+			AND FLG_DELETE = 'N'
+	</select>
+	
+	<select id="currentBasket" parameterType="memberDto" resultType="memberDto">
+		SELECT
+			COUNT(bsk.seq_sle) current_basket
+		FROM
+			TB_MBR_MST mst
+		LEFT JOIN
+			TB_BSK bsk
+		ON
+			mst.SEQ_MBR = bsk.SEQ_MBR
+		WHERE
+			mst.SEQ_MBR = #{seq_mbr}
+			AND bsk.FLG_DELETE = 'N'
+	</select>
+	
+	<update id="updateMyPasswd" parameterType="memberDto">
+		UPDATE
+			TB_MBR_MST
+		SET
+			PASSWD		= #{passwd}
+			, UPDATER	= #{updater}
+			, DT_UPT	= SYSDATE
+		WHERE
+			SEQ_MBR		= #{seq_mbr}
+	</update>
+	
+	<select id="selectMyPasswd" parameterType="memberDto" resultType="memberDto">
+	SELECT
+		PASSWD
+	FROM
+		TB_MBR_MST
+	WHERE
+		SEQ_MBR		= #{seq_mbr}
+	</select>
+	
+	<update id="pointUpdate" parameterType="buyMasterDto">
+		UPDATE
+			TB_MBR_MST
+		SET
+			TOTAL_POINT = NVL(TOTAL_POINT, 0) + #{total_point}
+			, DT_UPT	= SYSDATE
+			, UPDATER	= #{seq_mbr}
+		WHERE
+			SEQ_MBR		= #{seq_mbr}
+	</update>
+	
+	<update id="useUpdate" parameterType="buyMasterDto">
+		UPDATE
+			TB_MBR_MST
+		SET
+			TOTAL_POINT	= TOTAL_POINT - #{use_point}
+			, DT_UPT	= SYSDATE
+			, UPDATER	= #{seq_mbr}
+		WHERE
+			SEQ_MBR		= #{seq_mbr}
+	</update>
+
+	<update id="withdraw" parameterType ="memberDto">
+		UPDATE
+			TB_MBR_MST
+		SET
+			MBR_NM = '_' || SEQ_MBR || MBR_NM
+			,EMAIL = '_' || SEQ_MBR || EMAIL
+			, CD_STATE	= 8
+			, DT_UPT	= SYSDATE
+			, REGISTER	= #{register}
+		WHERE
+			SEQ_MBR = #{seq_mbr}
+	</update>
+
+	<update id="updateMaster" parameterType="memberDto">
+		UPDATE
+			TB_MBR_MST
+		SET
+			DT_UPT	= SYSDATE
+			<if test="phone != null and phone != ''">
+			, PHONE	= #{phone}
+			</if>
+			, UPDATER = #{updater}
+		WHERE
+			SEQ_MBR	= #{seq_mbr}
+	</update>
+	
+	<update id="updateDetail" parameterType="memberDto">
+		UPDATE
+			TB_MBR_DTL
+		SET
+			DT_UPT		= SYSDATE
+			, UPDATER	= #{updater}
+			<if test="post != null and post != ''">
+			, POST		= #{post}
+			</if>
+			<if test="addr1 != null and addr1 != ''">
+			, ADDR1		= #{addr1}
+			</if>
+			<if test="addr2 != null and addr2 != ''">
+			, ADDR2		= #{addr2}
+			</if>
+			<if test="flg_sms != null and flg_sms != ''">
+			, FLG_SMS	= #{flg_sms}
+			, DT_SMS	= SYSDATE
+			</if>
+			<if test="flg_email != null and flg_email != ''">
+			, FLG_EMAIL	= #{flg_email}
+			, DT_EMAIL	= SYSDATE
+			</if>
+		WHERE
+			SEQ_MBR		= #{seq_mbr}
+	</update>
+
+	<update id="updatePasswd" parameterType="memberDto">
+		UPDATE
+			TB_MBR_MST
+		SET
+			PASSWD		= #{passwd}
+			, DT_UPT	= SYSDATE
+		WHERE
+			EMAIL		= #{email}
+	</update>
+	
+	<select id="selectPasswd" parameterType="memberDto" resultType="memberDto">
+	SELECT
+		PASSWD
+	FROM
+		TB_MBR_MST
+	WHERE
+		EMAIL = #{email}
+	</select>
+
+	<update id="tempPasswd" parameterType="memberDto">
+		UPDATE
+			TB_MBR_MST
+		SET
+			PASSWD		= #{passwd}
+			, DT_UPT	= SYSDATE
+		WHERE
+		EMAIL = #{email}
+		AND MBR_NM = #{mbr_nm}
+	</update>
+	
+	<select id="findPasswd" parameterType="memberDto" resultType="java.lang.Integer">
+	SELECT
+		COUNT(SEQ_MBR)
+	FROM
+		TB_MBR_MST
+	WHERE
+		EMAIL = #{email}
+		AND MBR_NM = #{mbr_nm}
+		<!-- PHONE = #{phone} -->
+	</select>
+
+	<select id="findId" parameterType="memberDto" resultType="memberDto">
+	SELECT
+		email
+	FROM
+		TB_MBR_MST
+	WHERE
+		MBR_NM = #{mbr_nm}
+	</select>
+
+	<update id="updateStateM" parameterType="memberDto">
+		UPDATE
+			TB_MBR_MST
+		SET
+			EMAIL = '#' || seq_mbr || '_' || email
+		WHERE
+			CD_STATE	= 0
+			AND EMAIL	= #{email}
+			<![CDATA[
+			AND
+			dt_reg <= SYSDATE - INTERVAL '10' MINUTE
+			]]>
+	</update>
+
+	<update id="updateState" parameterType="memberDto">
+		UPDATE
+			TB_MBR_MST
+		SET
+			CD_STATE = 1
+		WHERE
+			CD_STATE	= 0
+			AND EMAIL	= #{email}
+			<![CDATA[
+			AND DT_REG >= SYSDATE - INTERVAL '10' MINUTE
+			]]> 
+	</update>
+	
+	<select id="selectDuplicate" parameterType="memberDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(EMAIL)
+		FROM
+			TB_MBR_MST
+		WHERE
+			EMAIL = #{email}
+	</select>
+
+	<select id="select" parameterType="memberDto" resultType="memberDto">
+		SELECT
+			mst.SEQ_MBR
+			, mst.EMAIL
+			, mst.MBR_NM
+			, mst.GENDER
+			, mst.PHONE
+			, addr.POST
+			, addr.ADDR1
+			, addr.ADDR2
+			, addr.SEQ_MBR_ADDR
+			, mst.TOTAL_POINT
+			, TO_CHAR(SYSDATE + 3, 'MM"월"" "DD"일"') dt_reg
+		FROM
+			TB_MBR_MST mst
+		LEFT JOIN
+			TB_MBR_ADDR addr
+		ON
+			mst.SEQ_MBR = addr.SEQ_MBR
+		WHERE
+			mst.SEQ_MBR = #{seq_mbr}
+			AND addr.FLG_DEFAULT = 'Y'
+	</select>
+	
+	<select id="selectIndex" parameterType="memberDto" resultType="memberDto">
+		SELECT
+			mst.SEQ_MBR
+			, mst.EMAIL
+			, mst.MBR_NM
+			, mst.GENDER
+			, mst.PHONE
+			, mst.TOTAL_POINT
+			, TO_CHAR(SYSDATE + 3, 'MM"월"" "DD"일"') dt_reg
+		FROM
+			TB_MBR_MST mst
+		WHERE
+			mst.SEQ_MBR = #{seq_mbr}
+	</select>
+	
+	<select id="selectBuyMst" parameterType="buyMasterDto" resultType="buyMasterDto">
+		SELECT
+			COUNT(CASE WHEN CD_STATE = 2 THEN 1 END) AS cd_state_total_2,
+			COUNT(CASE WHEN CD_STATE = 3 THEN 1 END) AS cd_state_total_3,
+			COUNT(CASE WHEN CD_STATE = 4 THEN 1 END) AS cd_state_total_4,
+			COUNT(CASE WHEN CD_STATE_DELIVERY = 'C' THEN 1 END) AS delivery_total_c,
+			COUNT(CASE WHEN CD_STATE_DELIVERY = 'P' THEN 1 END) AS delivery_total_p,
+			COUNT(CASE WHEN CD_STATE_DELIVERY = 'D' THEN 1 END) AS delivery_total_d,
+			COUNT(CASE WHEN CD_STATE_DELIVERY = 'Y' THEN 1 END) AS delivery_total_y
+		FROM 
+			TB_BUY_MST
+		WHERE
+			SEQ_MBR = #{seq_mbr}
+			AND DT_REG >= SYSDATE - 30
+	</select>
+
+	<insert id="insertMaster" parameterType="memberDto">
+		INSERT INTO TB_MBR_MST
+			(SEQ_MBR, EMAIL, PASSWD, FLG_SUR, CD_STATE, MBR_NM, AGE, GENDER, PHONE, DT_REG, REGISTER)
+		VALUES
+			(#{seq_mbr}, #{email}, #{passwd}, #{flg_sur}, 0, #{mbr_nm}, TO_DATE(#{age}, 'YYYY-MM-DD'), #{gender}, #{phone}, SYSDATE, #{register})
+	</insert>
+	
+	<insert id="insertDetail" parameterType="memberDto">
+		INSERT INTO TB_MBR_DTL
+			(SEQ_MBR, POST, ADDR1, ADDR2, FLG_SMS, FLG_EMAIL, DT_SMS, DT_EMAIL)
+		VALUES
+			(#{seq_mbr}, #{post}, #{addr1}, #{addr2}, #{flg_sms}, #{flg_email}, SYSDATE, SYSDATE)
+	</insert>
+	
+	<insert id="insertAddr" parameterType="memberDto">
+		INSERT INTO TB_MBR_ADDR
+			(SEQ_MBR_ADDR, SEQ_MBR, POST, ADDR1, ADDR2, FLG_DELETE, FLG_DEFAULT, DT_REG, REGISTER, DT_UPT, UPDATER)
+		VALUES
+			(SQ_SEQ_MBR_ADDR.NEXTVAL, #{seq_mbr}, #{post}, #{addr1}, #{addr2}, 'N', 'Y', SYSDATE, #{seq_mbr}, NULL, NULL)
+	</insert>
+	
+	<select id="sequence" resultType="java.lang.Integer">
+		SELECT SQ_SEQ_MBR.NEXTVAL FROM DUAL
+	</select>
+
+</mapper> 

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.bravomylife.front.mybatis.buy.BuyDetail">
+		
+	<insert id="insertBestMst" parameterType="buyDetailDto">
+		INSERT INTO TB_BEST
+			(SEQ_BEST, SEQ_SLE, FLG_BEST, DT_REG, COUNT, CD_CTG_B, CD_CTG_M, DT_UPT)
+		VALUES
+			(#{seq_best}, #{seq_sle}, NULL, SYSDATE, #{count}, #{cd_ctg_b}, #{cd_ctg_m}, NULL)
+	</insert>
+	
+	<update id="updateBestMst" parameterType="buyDetailDto">
+		UPDATE
+			TB_BEST
+		SET
+			COUNT			= COUNT + #{count}
+			, DT_UPT		= SYSDATE
+		WHERE
+			SEQ_SLE			= #{seq_sle}
+	</update>
+	
+	<select id="insertBestCheck" parameterType="buyDetailDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(SEQ_SLE)
+		FROM
+			TB_BEST
+		WHERE
+			SEQ_SLE		= #{seq_sle}
+	</select>
+	
+	<insert id="insertBest" parameterType="buyDetailDto">
+		INSERT INTO TB_BEST_DTL
+			(SEQ_BEST_DTL, SEQ_BEST, SEQ_SLE, CD_CTG_B, CD_CTG_M, DT_REG)
+		VALUES
+			(SQ_SEQ_BEST_DTL.NEXTVAL, #{seq_best}, #{seq_sle}, #{cd_ctg_b}, #{cd_ctg_m}, SYSDATE)
+	</insert>
+	
+	<insert id="insert" parameterType="buyDetailDto">
+		INSERT INTO TB_BUY_DTL
+			(SEQ_BUY_DTL, SEQ_BUY_MST, SEQ_SLE, SEQ_MBR_ADDR, SEQ_MBR, SEQ_REVIEW, SLE_NM, COUNT, PRICE, POINT, FLG_REVIEW, DT_REG, REGISTER)
+		VALUES
+			(#{seq_buy_dtl}, #{seq_buy_mst}, #{seq_sle}, #{seq_mbr_addr}, #{seq_mbr}, NULL, #{sle_nm}, #{count}, #{price}, #{point}, 'N', SYSDATE, #{register})
+	</insert>
+	
+	<select id="sequence" resultType="java.lang.Integer">
+		SELECT SQ_SEQ_BUY_DTL.NEXTVAL FROM DUAL
+	</select>
+	
+	<select id="sequenceBest" resultType="java.lang.Integer">
+		SELECT SQ_SEQ_BEST.NEXTVAL FROM DUAL
+	</select>
+	
+</mapper>

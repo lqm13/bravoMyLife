@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.bravomylife.front.mybatis.center.Board">
+	
+	<select id="introduceSelect" parameterType="boardDto" resultType="boardDto">
+		SELECT * FROM (
+			SELECT
+				SEQ_BBS
+				, TITLE
+				, FILE_SAVE
+				, FILE_ORIG
+				, TO_CHAR(DT_REG, 'YYYY-MM-DD') dt_reg
+			FROM
+				TB_BBS 
+			WHERE
+				CD_BBS_TYPE	= 5
+				AND FLG_DELETE IS NULL
+			ORDER BY
+				seq_bbs desc
+			) WHERE ROWNUM = 1
+	</select>
+	
+	<select id="healthSelect" parameterType="boardDto" resultType="boardDto">
+		SELECT
+			SEQ_BBS
+			, TITLE
+			, FILE_SAVE
+			, FILE_ORIG
+			, TO_CHAR(DT_REG, 'YYYY-MM-DD') dt_reg
+		FROM
+			TB_BBS 
+		WHERE
+			CD_BBS_TYPE	= 6
+			AND FLG_DELETE IS NULL
+		ORDER BY
+			seq_bbs desc
+	</select>
+	
+	<select id="ingredSelect" parameterType="boardDto" resultType="boardDto">
+		SELECT
+			SEQ_BBS
+			, TITLE
+			, FILE_SAVE
+			, FILE_ORIG
+			, TO_CHAR(DT_REG, 'YYYY-MM-DD') dt_reg
+		FROM
+			TB_BBS 
+		WHERE
+			CD_BBS_TYPE	= 7
+			AND FLG_DELETE IS NULL
+		ORDER BY
+			seq_bbs desc
+	</select>
+	
+	<select id="mySelect" parameterType="boardDto" resultType="boardDto">
+		SELECT
+			SLE_NM
+		FROM
+			TB_SLE
+		WHERE 
+			SEQ_SLE = #{seq_sle}
+	</select>
+
+
+	<update id="deleteFlag" parameterType="boardDto">
+		UPDATE
+			TB_BBS
+		SET
+			FLG_DELETE	= 'Y'
+			, DT_UPT	= SYSDATE
+			, UPDATER	= #{updater}
+		WHERE
+			CD_BBS_TYPE = #{cd_bbs_type}
+			AND SEQ_BBS = #{seq_bbs}
+	</update>
+	
+	<delete id="delete" parameterType="boardDto">
+		DELETE FROM
+			TB_BBS
+		WHERE
+			CD_BBS_TYPE = #{cd_bbs_type}
+			AND SEQ_BBS = #{seq_bbs}
+	</delete>
+	
+	<update id="update" parameterType="boardDto">
+		UPDATE
+			TB_BBS
+		SET
+			TITLE		= #{title}
+			, CD_CTG	= #{cd_ctg}
+			, CONTENT	= #{content}
+			, DT_UPT	= SYSDATE
+			, UPDATER	= #{updater}
+		WHERE
+			SEQ_BBS = #{seq_bbs}
+	</update>
+	
+	<select id="selectReply" parameterType="boardDto" resultType="boardDto">
+		SELECT
+			SEQ_BBS
+			, TITLE
+			, CONTENT
+			, FILE_SAVE
+			, FILE_ORIG
+			, IMG
+			, TO_CHAR(DT_REG, 'YYYY-MM-DD') dt_reg
+		FROM
+			TB_BBS
+		WHERE
+			CD_BBS_TYPE			= #{cd_bbs_type}
+			AND SEQ_BBS_PARENT	= #{seq_bbs}
+	</select>
+	
+	<select id="select" parameterType="boardDto" resultType="boardDto">
+		SELECT
+			tb_reply.SEQ_BBS
+			, tb_reply.TITLE
+			, (SELECT bbs.SEQ_BBS FROM TB_BBS bbs WHERE bbs.SEQ_BBS_PARENT = tb_reply.SEQ_BBS) seq_reply
+			, tb_reply.CD_CTG
+			, tb_reply.CONTENT
+			, tb_reply.FILE_SAVE
+			, tb_reply.FILE_ORIG
+			, tb_reply.SEQ_SLE
+			, tb_reply.IMG
+			, tb_reply.CD_CTG_B
+			, tb_reply.CD_CTG_M
+			, TO_CHAR(tb_reply.DT_REG, 'YYYY-MM-DD') dt_reg
+			,sle.SLE_NM
+		FROM
+			TB_BBS tb_reply left outer join TB_SLE sle on tb_reply.seq_sle=sle.seq_sle
+		WHERE
+			tb_reply.CD_BBS_TYPE		= #{cd_bbs_type}
+			AND tb_reply.SEQ_BBS		= #{seq_bbs}
+
+	</select>
+	
+	<insert id="insert" parameterType="boardDto">
+		INSERT INTO TB_BBS
+			(SEQ_BBS, CD_BBS_TYPE, TITLE, CD_CTG, CONTENT, FILE_SAVE, FILE_ORIG, IMG, READED, SEQ_SLE, CD_CTG_B, CD_CTG_M, DT_REG, REGISTER)
+		VALUES
+			(#{seq_bbs}, #{cd_bbs_type}, #{title}, #{cd_ctg}, #{content}, #{file_save}, #{file_orig}, #{img}, 0, #{seq_sle}, #{cd_ctg_b}, #{cd_ctg_m},SYSDATE, #{register})
+	</insert>
+	
+	<select id="count" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(ROWNUM)
+		FROM
+			TB_BBS
+		WHERE
+			<include refid="where" />
+	</select>
+	
+	<select id="list" parameterType="pagingDto" resultType="boardDto">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				/*+ first_rows(10) */ ROW_NUMBER() OVER (ORDER BY FLG_TOP, FLG_REPLY DESC, DT_REG DESC) rnum
+				, SEQ_BBS
+				, REGISTER
+				, (SELECT tb_reply.SEQ_BBS FROM TB_BBS tb_reply WHERE tb_reply.SEQ_BBS_PARENT = TB_BBS.SEQ_BBS) seq_reply
+				, DECODE(CD_CTG, 1, '가입탈퇴', 2, '상품', 3, '구매', 4, '결제', 5, '배송', 6, '환불', 9, '기타', '미정') CTG_NM
+				, TITLE
+				, CONTENT
+				, IMG
+				, CD_BBS_TYPE
+				, FILE_ORIG
+				, CD_CTG
+				, DECODE(LOWER(SUBSTR(FILE_ORIG, INSTR(FILE_ORIG, '.', -1, 1) + 1))
+					, 'xlsx', 'xls'
+					, 'xls'	, 'xls'
+					, 'docx', 'doc'
+					, 'doc'	, 'doc'
+					, 'pptx', 'ppt'
+					, 'ppt'	, 'ppt'
+					, 'hwp'	, 'hwp'
+					, 'pdf'	, 'pdf'
+					, 'gif'	, 'gif'
+					, 'jpg'	, 'jpg'
+					, 'png'	, 'png'
+					, NULL	, ''
+					, 'etc') extension
+				, FLG_TOP
+				, TO_CHAR(DT_REG, 'YYYY-MM-DD') dt_reg
+				, READED
+			FROM
+				TB_BBS
+			WHERE
+				<include refid="where" />
+			)
+		<![CDATA[
+		WHERE
+			rnum >= (${currentPage} - 1) * ${linePerPage} + 1 AND rnum <= ${currentPage} * ${linePerPage}
+		]]> 
+		ORDER BY
+			FLG_TOP, rnum
+	</select>
+	
+	<sql id="where">
+			CD_BBS_TYPE = #{cd_bbs_type}
+			AND FLG_DELETE IS NULL
+			<if test="sSearchWord != null and sSearchWord != ''">
+				<if test="sSearchKey == 'title'">
+					AND TITLE LIKE '%' || #{sSearchWord} || '%'
+				</if>
+				<if test="sSearchKey == 'contents'">
+					AND CONTENT LIKE '%' || #{sSearchWord} || '%'
+				</if>
+				<if test="sSearchKey == 'title+contents'">
+					AND (TITLE LIKE '%' || #{sSearchWord} || '%' OR CONTENT LIKE '%' || #{sSearchWord} || '%')
+				</if>
+			</if>
+			<if test="cd_ctg != 0">
+				AND CD_CTG = #{cd_ctg}
+			</if>
+			<if test="cd_bbs_type == 3">
+				AND SEQ_BBS_PARENT IS NULL
+				AND REGISTER = #{register}
+			</if>
+	</sql>
+	
+	<select id="sequence" resultType="java.lang.Integer">
+		SELECT SQ_SEQ_BBS.NEXTVAL FROM DUAL
+	</select>
+</mapper>

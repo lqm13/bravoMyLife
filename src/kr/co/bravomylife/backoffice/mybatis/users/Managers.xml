@@ -1,0 +1,81 @@
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.bravomylife.backoffice.mybatis.users.Managers">
+
+	<update id="update" parameterType ="managersDto">
+		UPDATE
+			TB_MNG
+		SET
+			CD_STATE	= #{cd_state}
+			, DT_UPT	= SYSDATE
+			, UPDATER	= #{updater}
+		WHERE
+			SEQ_MNG = #{seq_mng}
+	</update>
+	
+	<select id="select" parameterType="managersDto" resultType="managersDto">
+		SELECT
+			tb_mng.SEQ_MNG
+			, tb_mng.EMAIL
+			, tb_mng.CD_STATE
+			, tb_mng.MNG_NM
+			, tb_mng.PHONE
+			, tb_mng.POST
+			, tb_mng.ADDR1
+			, tb_mng.ADDR2
+			, TO_CHAR(tb_mng.DT_REG, 'YYYY-MM-DD HH24:MI:SS') dt_reg
+			, TO_CHAR(tb_mng.DT_UPT, 'YYYY-MM-DD HH24:MI:SS') dt_upt
+		FROM
+			TB_MNG 
+		WHERE
+			SEQ_MNG = #{seq_mng}
+	</select>
+
+	<select id="count" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(ROWNUM)
+		FROM
+			TB_MNG
+		<include refid="where" />
+	</select>
+	
+	<select id="list" parameterType="pagingDto" resultType="managersDto">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				/*+ first_rows(10) */ ROW_NUMBER() OVER (ORDER BY DT_REG DESC) rnum
+				, SEQ_MNG
+				, EMAIL
+				, CD_STATE
+				, MNG_NM
+				, TO_CHAR(DT_REG, 'YYYY-MM-DD') dt_reg
+			FROM
+				TB_MNG
+			<include refid="where" />
+			)
+		<![CDATA[
+		WHERE
+			rnum >= (${currentPage} - 1) * ${linePerPage} + 1 AND rnum <= ${currentPage} * ${linePerPage}
+		]]> 
+		ORDER BY
+			rnum
+	</select>
+
+	<sql id="where">
+		<where>
+			<![CDATA[
+			CD_STATE > -1
+			]]>
+			<if test="searchWord != null and searchWord != ''">
+				<if test="searchKey == 'mng_nm'">
+					AND MNG_NM LIKE '%' || #{searchWord} || '%'
+				</if>
+				<if test="searchKey == 'email'">
+					AND EMAIL LIKE '%' || #{searchWord} || '%'
+				</if>
+			</if>
+		</where>
+	</sql>
+
+</mapper>

@@ -1,0 +1,460 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.bravomylife.front.mybatis.buy.Buy">
+	
+	<select id="pointUseHistoryMain" parameterType="buyMasterDto" resultType="buyMasterDto">
+		SELECT 
+			TO_CHAR(earliest_date, 'YYYY-MM-DD') earliest_date
+			, TO_CHAR(latest_date, 'YYYY-MM-DD') latest_date
+			, mst_count
+			, total_use_point
+		FROM (
+			SELECT 
+				MIN(DT_REG) earliest_date
+				, MAX(DT_REG) latest_date
+				, COUNT(SEQ_BUY_MST) mst_count
+				, SUM(USE_POINT) total_use_point
+			FROM 
+				TB_BUY_MST
+			WHERE 
+				SEQ_MBR = #{seq_mbr}
+				AND USE_POINT != 0
+		)
+	</select>
+	
+	<select id="pointListDtl" parameterType="pagingDto" resultType="BuyDetailDto">
+		SELECT
+			dtl.SEQ_BUY_MST
+			, dtl.SEQ_BUY_DTL
+			, dtl.SEQ_SLE
+			, dtl.SLE_NM
+			, dtl.COUNT
+			, dtl.PRICE
+			, TO_CHAR(dtl.DT_REG, 'YYYY-MM-DD') dt_reg
+			, sle.IMG
+			, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) AS discount_sale
+			, sle.POINT_STACK
+			, sle.CD_CTG_M
+			, sle.CD_CTG_B
+			, sle.PRICE_SALE
+			, sle.DISCOUNT
+		FROM
+			TB_BUY_DTL dtl
+		LEFT JOIN
+			TB_SLE sle
+		ON
+			dtl.SEQ_SLE = sle.SEQ_SLE
+		WHERE
+			SEQ_BUY_MST IN (
+				SELECT SEQ_BUY_MST
+				FROM TB_BUY_MST
+				WHERE SEQ_MBR = #{seq_mbr}
+								<choose>
+									<when test="cd_state != null and cd_state != ''">
+										AND CD_STATE		= #{cd_state}
+									</when>
+									<otherwise>
+										AND CD_STATE IN (2, 3, 4)
+									</otherwise>
+								</choose>
+								AND CD_STATE_PAY	= 'Y'
+								AND FLG_DELETE		= 'N'
+			)
+	</select>
+	
+	<select id="buyPointCount" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(ROWNUM)
+		FROM
+			TB_BUY_MST buy_mst
+		LEFT JOIN
+			TB_BUY_DTL buy_dtl
+		ON
+			buy_mst.SEQ_MBR = buy_dtl.SEQ_MBR
+			AND buy_mst.SEQ_BUY_MST = buy_dtl.SEQ_BUY_MST
+		WHERE
+		<include refid="pointListWhere" />
+	</select>
+
+	<select id="pointListMst" parameterType="pagingDto" resultType="BuyMasterDto">
+		SELECT
+			*
+		FROM
+		(
+		SELECT
+			/*+ first_rows(10) */ ROW_NUMBER() OVER (ORDER BY buy_mst.DT_REG DESC) rnum
+			, buy_mst.SEQ_BUY_MST
+			, buy_mst.SEQ_MBR_ADDR
+			, buy_mst.SEQ_MBR
+			, TO_CHAR(buy_mst.DT_REG, 'YYYY-MM-DD') dt_reg
+			, buy_mst.DELIVERY_REQUEST
+			, buy_mst.CD_STATE
+			, buy_mst.USE_POINT
+		FROM
+			TB_BUY_MST buy_mst
+		WHERE
+		<include refid="pointListWhere" />
+		)
+		<![CDATA[
+		WHERE rnum >= (${currentPage} - 1) * ${linePerPage} + 1 AND rnum <= ${currentPage} * ${linePerPage}
+		]]>
+		ORDER BY rnum
+	</select>
+	
+	<sql id="pointListWhere">
+		buy_mst.SEQ_MBR				= #{seq_mbr}
+		<choose>
+			<when test="cd_state != null and cd_state != ''">
+				AND buy_mst.CD_STATE		= #{cd_state}
+			</when>
+			<otherwise>
+				AND buy_mst.CD_STATE IN (2, 3, 4)
+			</otherwise>
+		</choose>
+		AND buy_mst.CD_STATE_PAY	= 'Y'
+		AND buy_mst.FLG_DELETE		= 'N'
+		AND buy_mst.USE_POINT		!= 0
+	</sql>
+	
+	<update id="historyDelete" parameterType="buyDto">
+		UPDATE
+			TB_BUY_MST
+		SET
+			FLG_DELETE			=	'Y'
+			, UPDATER			=	#{seq_mbr}
+			, DT_UPT			=	SYSDATE
+		WHERE
+			SEQ_MBR				=	#{seq_mbr}
+			AND SEQ_BUY_MST		=	#{seq_buy_mst}
+	</update>
+	
+	<update id="updateCancle" parameterType="buyDetailDto">
+		UPDATE
+			TB_BUY_MST
+		SET
+			CD_STATE		= #{cd_state}
+			, DT_UPT		= SYSDATE
+			, UPDATER		= #{seq_mbr}
+		WHERE
+			SEQ_MBR		= #{seq_mbr}
+			AND SEQ_BUY_MST = #{seq_buy_mst}
+			AND CD_STATE 	= '1'
+	</update>
+	
+	<select id="cancelDtl" parameterType="buyDto" resultType="buyDto">
+		SELECT
+			dtl.SEQ_BUY_MST
+			, dtl.SLE_NM
+			, dtl.COUNT
+			, dtl.PRICE
+			, sle.IMG
+			, (dtl.COUNT * dtl.PRICE) total_price
+		FROM
+			TB_BUY_DTL dtl
+		LEFT JOIN
+			TB_SLE sle
+		ON
+			dtl.SEQ_SLE = sle.SEQ_SLE
+		WHERE
+			SEQ_BUY_MST IN (
+				SELECT SEQ_BUY_MST
+				FROM TB_BUY_MST
+				WHERE SEQ_MBR = #{seq_mbr}
+								AND SEQ_BUY_MST		= #{seq_buy_mst}
+			)
+	</select>
+	
+	<select id="cancelMst" parameterType="buyDto" resultType="buyDto">
+		SELECT
+			*
+		FROM
+		(
+		SELECT
+			mst.SEQ_BUY_MST
+			, pay.SEQ_PAY
+			, pay.DEAL_NUM
+			, mst.SEQ_MBR
+			, TO_CHAR(mst.DT_UPT, 'MM"월"" "DD"일"') dt_upt
+			, TO_CHAR(SYSDATE, 'MM"월"" "DD"일"') dt_reg
+			, mst.BUY_PRICE
+			, (mst.BUY_PRICE - 2500) total_price_sum
+			, mst.CD_STATE
+		FROM
+			TB_BUY_MST mst
+		LEFT JOIN
+			TB_PAY pay
+		ON
+			mst.SEQ_BUY_MST = pay.SEQ_BUY_MST
+		WHERE
+		<include refid="cancelwhere" />
+		)
+		ORDER BY dt_reg DESC
+	</select>
+	
+	<sql id="cancelwhere">
+		mst.SEQ_MBR				= #{seq_mbr}
+		AND mst.SEQ_BUY_MST		= #{seq_buy_mst}
+	</sql>
+	
+	<select id="deliveryListDtl" parameterType="buyDto" resultType="buyDto">
+		SELECT
+			dtl.SEQ_BUY_MST
+			, dtl.SLE_NM
+			, dtl.COUNT
+			, dtl.PRICE
+		FROM
+			TB_BUY_DTL dtl
+		LEFT JOIN
+			TB_SLE sle
+		ON
+			dtl.SEQ_SLE = sle.SEQ_SLE
+		WHERE
+			SEQ_BUY_MST IN (
+				SELECT SEQ_BUY_MST
+				FROM TB_BUY_MST
+				WHERE SEQ_MBR = #{seq_mbr}
+								AND SEQ_MBR_ADDR	= #{seq_mbr_addr}
+								AND SEQ_BUY_MST		= #{seq_buy_mst}
+			)
+	</select>
+	
+	<select id="deliveryListMst" parameterType="buyDto" resultType="buyDto">
+		SELECT
+			*
+		FROM
+		(
+		SELECT
+			SEQ_BUY_MST
+			, SEQ_MBR_ADDR
+			, SEQ_MBR
+			, DT_REG
+		FROM
+			TB_BUY_MST
+		WHERE
+		<include refid="buyDeliverywhere" />
+		)
+		ORDER BY dt_reg DESC
+	</select>
+	
+	<sql id="buyDeliverywhere">
+		SEQ_MBR				= #{seq_mbr}
+		AND SEQ_MBR_ADDR	= #{seq_mbr_addr}
+		AND SEQ_BUY_MST		= #{seq_buy_mst}
+	</sql>
+	
+	<select id="buyListDtl" parameterType="pagingDto" resultType="BuyDetailDto">
+		SELECT
+			dtl.SEQ_BUY_MST
+			, dtl.SEQ_BUY_DTL
+			, dtl.SEQ_SLE
+			, dtl.SLE_NM
+			, dtl.COUNT
+			, dtl.PRICE
+			, TO_CHAR(dtl.DT_REG, 'YYYY-MM-DD') dt_reg
+			, sle.IMG
+			, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) AS discount_sale
+			, sle.POINT_STACK
+			, sle.CD_CTG_M
+			, sle.CD_CTG_B
+			, sle.PRICE_SALE
+			, sle.DISCOUNT
+		FROM
+			TB_BUY_DTL dtl
+		LEFT JOIN
+			TB_SLE sle
+		ON
+			dtl.SEQ_SLE = sle.SEQ_SLE
+		WHERE
+			SEQ_BUY_MST IN (
+				SELECT SEQ_BUY_MST
+				FROM TB_BUY_MST
+				WHERE SEQ_MBR = #{seq_mbr}
+								<choose>
+									<when test="cd_state != null and cd_state != ''">
+										AND CD_STATE		= #{cd_state}
+									</when>
+									<otherwise>
+										AND CD_STATE IN (2, 3, 4)
+									</otherwise>
+								</choose>
+								AND CD_STATE_PAY	= 'Y'
+								AND FLG_DELETE		= 'N'
+			)
+	</select>
+	
+	<select id="buyCount" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(ROWNUM)
+		FROM
+			TB_BUY_MST buy_mst
+		LEFT JOIN
+			TB_BUY_DTL buy_dtl
+		ON
+			buy_mst.SEQ_MBR = buy_dtl.SEQ_MBR
+			AND buy_mst.SEQ_BUY_MST = buy_dtl.SEQ_BUY_MST
+		WHERE
+		<include refid="buywhere" />
+	</select>
+
+	<select id="buyListMst" parameterType="pagingDto" resultType="BuyMasterDto">
+		SELECT
+			*
+		FROM
+		(
+		SELECT
+			/*+ first_rows(10) */ ROW_NUMBER() OVER (ORDER BY buy_mst.DT_REG DESC) rnum
+			, buy_mst.SEQ_BUY_MST
+			, buy_mst.SEQ_MBR_ADDR
+			, buy_mst.SEQ_MBR
+			, TO_CHAR(buy_mst.DT_REG, 'YYYY-MM-DD') dt_reg
+			, buy_mst.DELIVERY_REQUEST
+			, buy_mst.CD_STATE
+		FROM
+			TB_BUY_MST buy_mst
+		WHERE
+		<include refid="buywhere" />
+		)
+		<![CDATA[
+		WHERE rnum >= (${currentPage} - 1) * ${linePerPage} + 1 AND rnum <= ${currentPage} * ${linePerPage}
+		]]>
+		ORDER BY rnum
+	</select>
+	
+	<sql id="buywhere">
+		buy_mst.SEQ_MBR				= #{seq_mbr}
+		<choose>
+			<when test="cd_state != null and cd_state != ''">
+				AND buy_mst.CD_STATE		= #{cd_state}
+			</when>
+			<otherwise>
+				AND buy_mst.CD_STATE IN (2, 3, 4)
+			</otherwise>
+		</choose>
+		AND buy_mst.CD_STATE_PAY	= 'Y'
+		AND buy_mst.FLG_DELETE		= 'N'
+	</sql>
+	
+	<select id="pointCount" parameterType="pagingDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(ROWNUM)
+		FROM
+			TB_BUY_DTL dtl
+		LEFT JOIN
+			TB_MBR_MST mst
+		ON
+			dtl.SEQ_MBR = mst.SEQ_MBR
+		WHERE
+		<include refid="pointWhere" />
+	</select>
+	
+	<sql id="pointWhere">
+		mst.SEQ_MBR = #{seq_mbr}
+		AND dtl.POINT != 0
+	</sql>
+	
+	<select id="pointHistory" parameterType="pagingDto" resultType="saleDto">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				/*+ first_rows(10) */ ROW_NUMBER() OVER (ORDER BY dtl.DT_REG DESC) rnum
+				, mst.SEQ_MBR
+				, dtl.POINT
+				, dtl.PRICE
+				, ROUND(dtl.POINT * dtl.COUNT, -1) AS point_value
+				, dtl.COUNT
+				, dtl.SLE_NM
+				, dtl.SEQ_SLE
+				, sle.CD_CTG_M
+				, sle.CD_CTG_B
+				, TO_CHAR(dtl.DT_REG, 'YYYY-MM-DD') dt_reg
+				, sle.IMG
+				, TO_CHAR(MIN(dtl.DT_REG) OVER (), 'YYYY-MM-DD') earliest_date
+				, TO_CHAR(MAX(dtl.DT_REG) OVER (), 'YYYY-MM-DD') latest_date
+				, COUNT(dtl.SEQ_SLE) OVER () sle_count
+				, SUM(dtl.POINT * dtl.COUNT) OVER () total_point
+			FROM
+				TB_MBR_MST mst
+			LEFT JOIN
+				TB_BUY_DTL dtl
+			ON
+				mst.SEQ_MBR = dtl.SEQ_MBR
+			LEFT JOIN
+				TB_SLE sle
+			ON
+				sle.SEQ_SLE = dtl.SEQ_SLE
+			WHERE
+				<include refid="pointWhere" />
+			)
+		<![CDATA[
+		WHERE
+			rnum >= (${currentPage} - 1) * ${linePerPage} + 1 AND rnum <= ${currentPage} * ${linePerPage}
+		]]> 
+		ORDER BY
+			rnum
+	</select>
+	
+	<select id="selectTotal" parameterType="buyDetailDto" resultType="java.lang.String">
+		SELECT
+			SUM(PRICE) total_price
+		FROM
+			TB_BUY_DTL
+		WHERE
+			SEQ_MBR = #{seq_mbr}
+	</select>
+	
+	<select id="historyList" parameterType="buyDetailDto" resultType="buyDetailDto">
+			SELECT *
+				FROM
+			(
+				SELECT
+					dtl.SEQ_BUY_MST
+					, dtl.SEQ_BUY_DTL
+					, dtl.SEQ_MBR
+					, dtl.COUNT
+					, dtl.PRICE
+					, TO_CHAR(dtl.DT_REG, 'YYYY-MM-DD') AS dt_reg
+					, (SELECT DECODE(mst.CD_STATE, 1, '결제', 2, '취소', 3, '교환', 4, '환불','확인중') from TB_BUY_MST mst where mst.seq_buy_mst = dtl.seq_buy_mst) cd_state
+					, (SELECT DECODE(mst.CD_STATE_PAY, NULL, '결제전', 'N', '실패', 'Y', '성공', 'C', '취소') from TB_BUY_MST mst where mst.seq_buy_mst = dtl.seq_buy_mst) cd_state_pay
+					, (
+						SELECT
+							DECODE(mst.CD_STATE_DELIVERY, 'C', '판매 확인중', 'P', '배송 준비중', 'D', '배송중', 'Y', '배송 완료','등록')
+						from
+							TB_BUY_MST mst
+						where
+							mst.seq_buy_mst = dtl.seq_buy_mst
+						) cd_state_delivery
+					, sle.SEQ_SLE
+					, sle.SLE_NM
+					, sle.IMG
+					, sle.DISCOUNT
+					, sle.PRICE_SALE
+					, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) AS discount_sale
+					, sle.cd_ctg_m
+					, sle.cd_ctg_b	
+					, sle.FLG_DELETE
+					, addr.POST
+					, addr.ADDR1
+					, addr.ADDR2
+					, addr.SEQ_MBR_ADDR
+				FROM 
+					TB_BUY_DTL dtl 
+				INNER JOIN 
+					TB_SLE sle	
+				ON 
+					dtl.SEQ_SLE = sle.SEQ_SLE
+				LEFT JOIN
+					TB_MBR_ADDR addr
+				ON
+					dtl.SEQ_MBR_ADDR = addr.SEQ_MBR_ADDR
+				WHERE
+					dtl.SEQ_MBR = #{seq_mbr}
+				<![CDATA[
+					AND rownum <=3
+				]]>
+				)
+					ORDER BY dt_reg DESC
+	</select>
+	
+</mapper>

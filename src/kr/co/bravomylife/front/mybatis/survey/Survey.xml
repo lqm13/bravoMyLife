@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.co.bravomylife.front.mybatis.survey.Survey">
+
+	<select id="selectDtl" parameterType="surveyDto" resultType="surveyDto">
+		SELECT
+			SEQ_HP_SUR_DTL
+		FROM
+			TB_HP_SUR_DTL
+		WHERE
+			SEQ_MBR = #{seq_mbr}
+		ORDER BY
+			SEQ_HP_SUR_DTL
+	</select>
+
+	<update id="update" parameterType="surveyDto">
+		UPDATE
+			TB_HP_SUR
+		SET
+			AGE				= #{age}
+			, GENDER		= #{gender}
+			, DT_UPT		= SYSDATE
+			, UPDATER		= #{seq_mbr}
+		WHERE
+			SEQ_MBR			= #{seq_mbr}
+	</update>
+
+	<update id="updateDtl" parameterType="surveyDto">
+		UPDATE
+			TB_HP_SUR_DTL
+		SET
+			CD_CTG_M			= #{cd_ctg_m}
+			, CD_CTG_B			= #{cd_ctg_b}
+			, SEQ_SLE			= #{seq_sle}
+		WHERE
+			SEQ_MBR				= #{seq_mbr}
+			AND SEQ_HP_SUR_DTL	= #{seq_hp_sur_dtl}
+	</update>
+
+	<select id="insertCheck" parameterType="surveyDto" resultType="java.lang.Integer">
+		SELECT
+			COUNT(SEQ_MBR)
+		FROM
+			TB_HP_SUR
+		WHERE
+			SEQ_MBR = #{seq_mbr}
+	</select>
+
+	<select id="selectKey" parameterType="surveyDto" resultType="surveyDto">
+		SELECT 
+			SEQ_HP_SUR
+			, SEQ_MBR
+		FROM
+			TB_HP_SUR
+		WHERE
+			SEQ_MBR = #{seq_mbr}
+	</select>
+
+	<select id="surveyDtl" parameterType="surveyDto" resultType="surveyDto">
+		SELECT
+			dtl.SEQ_HP_SUR
+			, dtl.SEQ_HP_SUR_DTL
+			, dtl.CD_CTG_M
+			, dtl.CD_CTG_B
+			, dtl.SEQ_SLE
+			, sle.IMG
+			, sle.SLE_NM
+			, sle.POINT_STACK
+			, sle.PRICE_SALE
+			, sle.DISCOUNT
+			, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) AS discount_sale
+		FROM
+			TB_HP_SUR_DTL dtl
+		LEFT JOIN
+			TB_SLE sle
+		ON
+			dtl.SEQ_SLE = sle.SEQ_SLE
+		WHERE
+			SEQ_HP_SUR IN (
+				SELECT
+					SEQ_HP_SUR
+				FROM
+					TB_HP_SUR
+				WHERE
+					SEQ_MBR = #{seq_mbr}
+					AND SEQ_HP_SUR = #{seq_hp_sur}
+			)
+			ORDER BY
+				SEQ_HP_SUR_DTL
+	</select>
+
+	<select id="surveyMst" parameterType="surveyDto" resultType="surveyDto">
+		SELECT
+			sur.SEQ_HP_SUR
+			, sur.SEQ_MBR
+			, sur.AGE
+			, sur.GENDER
+			, TO_CHAR(sur.DT_REG, 'YYYY-MM-DD') dt_reg
+			, TO_CHAR(sur.DT_UPT, 'YYYY-MM-DD') dt_upt
+			, mst.MBR_NM
+		FROM 
+			TB_HP_SUR sur
+		LEFT JOIN
+			TB_MBR_MST mst
+		ON
+			sur.SEQ_MBR = mst.SEQ_MBR
+		WHERE 
+			sur.SEQ_MBR = #{seq_mbr}
+			AND sur.SEQ_HP_SUR = #{seq_hp_sur}
+	</select>
+
+	<select id="select" parameterType="surveyDto" resultType="surveyDto">
+		SELECT 
+			sle.SLE_NM
+			, sle.SEQ_SLE
+			, ROUND(sle.PRICE_SALE * (1 - (sle.DISCOUNT / 100)), -1) AS discount_sale
+			, sle.IMG
+			, sle.POINT_STACK
+			, sle.PRICE_SALE
+			, sle.DISCOUNT
+		FROM
+			TB_SLE sle
+		JOIN (
+			SELECT 
+				SEQ_SLE
+			FROM (
+				SELECT 
+					SEQ_SLE
+				FROM 
+					TB_BEST
+				WHERE 
+					CD_CTG_M = #{cd_ctg_m}
+					AND CD_CTG_B = #{cd_ctg_b}
+				ORDER BY 
+					COUNT DESC, SEQ_SLE DESC
+			) 
+			WHERE ROWNUM = 1
+		) best ON sle.SEQ_SLE = best.SEQ_SLE
+	</select>
+
+	<select id="sequence" resultType="java.lang.Integer">
+		SELECT SQ_SEQ_HP_SUR.NEXTVAL FROM DUAL
+	</select>
+
+	<insert id="insertDtl" parameterType="surveyDto">
+		INSERT INTO TB_HP_SUR_DTL
+			(SEQ_HP_SUR_DTL, SEQ_HP_SUR, SEQ_MBR, CD_CTG_M, CD_CTG_B, SEQ_SLE)
+		VALUES
+			(SQ_SEQ_HP_SUR_DTL.NEXTVAL, #{seq_hp_sur}, #{seq_mbr}, #{cd_ctg_m}, #{cd_ctg_b}, #{seq_sle})
+	</insert>
+
+	<insert id="insert" parameterType="surveyDto">
+		INSERT INTO TB_HP_SUR
+			(SEQ_HP_SUR, SEQ_MBR, AGE, GENDER, REGISTER, DT_REG)
+		VALUES
+			(#{seq_hp_sur}, #{seq_mbr}, #{age}, #{gender}, #{seq_mbr}, SYSDATE)
+	</insert>
+
+	<select id="userInfo" parameterType="surveyDto" resultType="surveyDto">
+		SELECT
+			SEQ_MBR
+			, MBR_NM
+			, GENDER
+			, TO_CHAR(AGE, 'YYYY-MM-DD') age
+		FROM
+			TB_MBR_MST
+		WHERE
+			SEQ_MBR = #{seq_mbr}
+	</select>
+
+</mapper>
