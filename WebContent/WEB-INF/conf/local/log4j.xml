@@ -17,7 +17,7 @@
 		<param name="encoding" value="UTF-8" />
 		<param name="threshold" value="debug" />
 		<param name="ImmediateFlush" value="true" />
-		<param name="File" value="D:/Business/Eclipse/_dirLog/com.github.ecommerce7th.saturn/com.github.ecommerce7th.saturn.log" />
+		<param name="File" value="C:/eclipse_workspace/_dirLog/saturn/saturn.log" />
 		<param name="DatePattern" value="'.'yyyy-MM-dd" />
 		<param name="Append" value="true" />
 		<layout class="org.apache.log4j.PatternLayout">
